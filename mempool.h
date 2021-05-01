@@ -6,7 +6,7 @@
 
 typedef struct {
     // Starting pointer of the array of allocated blocks
-    void* allocated_blocks;
+    void* allocated_blocks[MAX_ALLOCATIONS];
 
     // Cached block that's available immediately to omit scanning the pool
     // Useful for a cycle of small frequent allocations/frees
