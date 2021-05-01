@@ -12,12 +12,6 @@ typedef struct {
     // Useful for a cycle of small frequent allocations/frees
     void* cached_block;
 
-    // Head of the allocated blocks array
-    size_t head;
-
-    // Tail of the allocated blocks array
-    size_t tail;
-
     // Number of blocks currently allocated
     size_t count;
 } mempool_t;

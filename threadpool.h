@@ -56,13 +56,13 @@ typedef struct {
     size_t started;
 } threadpool_t;
 
+
 // Thread pool flags
 
 typedef enum {
     threadpool_immediate = 1,
     threadpool_graceful
 } threadpool_destroy_flags_t;
-
 
 // Thread pool error codes
 
