@@ -36,23 +36,23 @@ typedef struct {
     // Number of tasks in the task queue array
     size_t queue_size;
 
-    // Taskqueue head
+    // Task queue head
     size_t head;
 
-    // Taskqueue tail
+    // Task queue tail
     size_t tail;
 
     // Number of tasks to run currently
     size_t count;
 
-    // If current state of threadpool is shutdown
+    // If current state of thread pool is shutdown
     size_t shutdown;
 
     // Number of threads running
     size_t started;
 } threadpool_t;
 
-// Threadpool flags
+// Thread pool flags
 
 typedef enum {
     threadpool_immediate = 1,
@@ -60,7 +60,7 @@ typedef enum {
 } threadpool_destroy_flags_t;
 
 
-// Threadpool error codes
+// Thread pool error codes
 
 typedef enum {
     threadpool_invalid = -1,
