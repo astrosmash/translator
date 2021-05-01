@@ -15,7 +15,8 @@ GTK := gtk+-3.0
 GTK_CFLAGS := $(shell pkg-config --cflags $(GTK))
 GTK_INCLUDE := $(shell pkg-config --libs $(GTK))
 
-CLANG_FLAGS_PROJECT += -L$(PROJECT_SRC_DIR) $(CLANG_FLAGS_COMMON) $(GTK_CFLAGS) -lcurl -ldb -Wall -Wextra -Wshadow -Wpedantic
+CLANG_FLAGS_PROJECT_DEBUG += -Wall -Wextra -Wshadow -Wpedantic
+CLANG_FLAGS_PROJECT += -L$(PROJECT_SRC_DIR) $(CLANG_FLAGS_COMMON) $(GTK_CFLAGS) -lcurl -ldb
 CLANG_INCLUDES_PROJECT += $(CLANG_INCLUDES_COMMON) $(GTK_INCLUDE)
 
 NPROC := $(shell nproc)
@@ -26,7 +27,6 @@ PROJECT_OBJECT := translator
 
 
 # all: sanitize format build
-
 all: build
 
 
@@ -71,6 +71,9 @@ format: verify_cmds
 
 build: $(CLANG)
 	$(CLANG) $(CLANG_FLAGS_PROJECT) $(CLANG_INCLUDES_PROJECT) $(PROJECT_SRC_DIR)/main.c -o $(PROJECT_OBJECT)
+
+builddebug: $(CLANG)
+	$(CLANG) $(CLANG_FLAGS_PROJECT) $(CLANG_INCLUDES_PROJECT) $(CLANG_FLAGS_PROJECT_DEBUG) $(PROJECT_SRC_DIR)/main.c -o $(PROJECT_OBJECT)
 
 clean:
 	rm -f $(PROJECT_OBJECT) a.out main.o main.plist
