@@ -1,12 +1,14 @@
 #include <pthread.h>
 
 typedef struct {
+    // Worker function
     void (*function)(void *);
 
+    // Arguments to the worker function
     void *argument;
 } threadpool_task_t;
 
-struct threadpool_t {
+typedef struct {
     // Mutex
     pthread_mutex_t mutex;
 
@@ -39,8 +41,29 @@ struct threadpool_t {
 
     // Number of threads running
     size_t started;
-};
+} threadpool_t;
 
+// Threadpool flags
+
+typedef enum {
+    threadpool_graceful = 1
+} threadpool_destroy_flags_t;
+
+// Threadpool error codes
+
+typedef enum {
+    threadpool_invalid = -1,
+    threadpool_lock_failed = -2,
+    threadpool_queue_full = -3,
+    threadpool_shutdown = -4,
+    threadpool_thread_failed = -5
+} threadpool_error_t;
+
+
+// External functions
+threadpool_t* threadpool_create(size_t, size_t, size_t);
+bool threadpool_add(threadpool_t*, threadpool_task_t*, size_t);
+bool threadpool_destroy(threadpool_t*, size_t);
 
 // Definition
 #include "threadpool.c"

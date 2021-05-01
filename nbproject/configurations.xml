@@ -5,6 +5,7 @@
                    displayName="Header Files"
                    projectFiles="true">
       <itemPath>main.h</itemPath>
+      <itemPath>mempool.h</itemPath>
       <itemPath>threadpool.h</itemPath>
     </logicalFolder>
     <logicalFolder name="ResourceFiles"
@@ -15,7 +16,8 @@
                    displayName="Source Files"
                    projectFiles="true">
       <itemPath>main.c</itemPath>
-      <itemPath>thread.c</itemPath>
+      <itemPath>mempool.c</itemPath>
+      <itemPath>threadpool.c</itemPath>
     </logicalFolder>
     <logicalFolder name="TestFiles"
                    displayName="Test Files"
@@ -46,7 +48,11 @@
       </item>
       <item path="main.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="thread.c" ex="false" tool="0" flavor2="0">
+      <item path="mempool.c" ex="false" tool="0" flavor2="0">
+      </item>
+      <item path="mempool.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="threadpool.c" ex="false" tool="0" flavor2="0">
       </item>
       <item path="threadpool.h" ex="false" tool="3" flavor2="0">
       </item>
@@ -76,7 +82,11 @@
       </item>
       <item path="main.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="thread.c" ex="false" tool="0" flavor2="0">
+      <item path="mempool.c" ex="false" tool="0" flavor2="0">
+      </item>
+      <item path="mempool.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="threadpool.c" ex="false" tool="0" flavor2="0">
       </item>
       <item path="threadpool.h" ex="false" tool="3" flavor2="0">
       </item>
