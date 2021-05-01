@@ -24,8 +24,9 @@ typedef enum {
     MODE_ALLOCATION = 1 << 0,
     MODE_REMOVAL = 1 << 1,
     MODE_GLOBAL_CLEANUP_ON_SHUTDOWN = 1 << 2
-} allocation_tracker_modes_t;
+} track_block_modes_t;
 
 // External functions
+bool track_block(void*, size_t);
 void* safe_alloc(size_t);
 void safe_free(void**);

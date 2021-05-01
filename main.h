@@ -29,4 +29,5 @@ typedef enum {
     true
 } bool;
 
+#include "mempool.h"
 #include "threadpool.h"

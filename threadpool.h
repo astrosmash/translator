@@ -1,5 +1,9 @@
 #include <pthread.h>
 
+// (Mainly) from:
+// https://programmer.group/c-simple-thread-pool-based-on-pthread-implementation.html
+
+
 // Maximum number of members in the thread array
 // Should not be more than number of CPU cores, in general
 // PROC_COUNT is defined in the Makefile (getconf _NPROCESSORS_ONLN)
