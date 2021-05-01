@@ -1,5 +1,14 @@
 #include <pthread.h>
 
+// Maximum number of members in the thread array
+// Should not be more than number of CPU cores, in general
+// PROC_COUNT is defined in the Makefile (getconf _NPROCESSORS_ONLN)
+#define MAX_THREADS __NR_CPUS__
+
+// Maximum number of members in the task queue array
+#define MAX_QUEUE 256
+
+
 typedef struct {
     // Worker function
     void (*function)(void *);
@@ -18,13 +27,13 @@ typedef struct {
     // Starting pointer of thread array
     pthread_t* threads;
 
-    // Starting pointer of taskqueue array
+    // Starting pointer of task queue array
     threadpool_task_t queue;
 
     // Number of threads in the array
     size_t thread_count;
 
-    // Number of tasks in the taskqueue array
+    // Number of tasks in the task queue array
     size_t queue_size;
 
     // Taskqueue head
@@ -46,8 +55,10 @@ typedef struct {
 // Threadpool flags
 
 typedef enum {
-    threadpool_graceful = 1
+    threadpool_immediate = 1,
+    threadpool_graceful
 } threadpool_destroy_flags_t;
+
 
 // Threadpool error codes
 
