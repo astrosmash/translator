@@ -16,10 +16,10 @@ bool track_block(void* ptr, size_t mode)
 {
     static mempool_t* pool = NULL;
     if (!pool) {
-        pool = malloc(sizof(mempool_t));
+        pool = malloc(sizeof (mempool_t));
         assert(pool);
 
-        memset(pool, 0, sizof(mempool_t));
+        memset(pool, 0, sizeof (mempool_t));
 
         // Initialize the pool.
         pool->allocated_blocks = malloc(sizeof (void*) * MAX_ALLOCATIONS);
@@ -28,7 +28,7 @@ bool track_block(void* ptr, size_t mode)
         memset(pool->allocated_blocks, 0, sizeof (void*) * MAX_ALLOCATIONS);
     }
 
-    qsort(pool, pool->count, sizeof (*void), track_block_sort);
+    qsort(pool, pool->count, sizeof (void *), track_block_sort);
 
 
     if (mode & MODE_ALLOCATION) {
@@ -45,7 +45,7 @@ bool track_block(void* ptr, size_t mode)
         assert(pool->count < MAX_ALLOCATIONS);
 
         if (!(pool->allocated_blocks + pool->count)) {
-            pool->allocated_blocks + pool->count = ptr;
+            memcpy(pool->allocated_blocks + pool->count, ptr, sizeof (ptr));
         } else {
             debug(DEBUG_ERROR, "Failed to insert %p at pos %zu - found %p there", ptr, pool->count, (pool->allocated_blocks + pool->count));
             return false;
@@ -65,10 +65,10 @@ bool track_block(void* ptr, size_t mode)
             return true;
         }
 
-        for (size_t i = 0; i <= pool->count; ++i) {
+        for (size_t i = 1; i <= pool->count; ++i) {
             debug(DEBUG_FULLDBG, "Looking for %p, found %p at pos %zu", ptr, (pool->allocated_blocks + i), i);
             if ((pool->allocated_blocks + i) == ptr) {
-                pool->allocated_blocks + i = NULL;
+                memcpy(pool->allocated_blocks + i, NULL, sizeof (NULL));
                 pool->cached_block = pool->allocated_blocks + i;
 
                 --pool->count;
@@ -82,27 +82,30 @@ bool track_block(void* ptr, size_t mode)
 
 
     if (mode & MODE_GLOBAL_CLEANUP_ON_SHUTDOWN) {
-        for (size_t i = 0; i <= pool->count; ++i) {
+        for (size_t i = 1; i <= pool->count; ++i) {
             if (pool->allocated_blocks + i) {
                 debug(DEBUG_FULLDBG, "Removing leftover %p at pos %zu", (pool->allocated_blocks + i), i);
                 free(pool->allocated_blocks + i);
-                pool->allocated_blocks + i = NULL;
+                memcpy(pool->allocated_blocks + i, NULL, sizeof (NULL));
+
 
                 --pool->count;
             }
         }
-        debug(DEBUG_VERBOSE, "%zu blocks were already NULL", pool->count);
+        if (pool->count) {
+            debug(DEBUG_VERBOSE, "%zu blocks were already NULL", pool->count);
+        }
 
         // We are exiting, free the pool
         free(pool);
-        *pool = NULL;
+        pool = NULL;
         return true;
     }
     debug(DEBUG_ERROR, "%zu blocks MISSED in the pool...", pool->count);
 
     // We are exiting, free the pool
     free(pool);
-    *pool = NULL;
+    pool = NULL;
     return false;
 }
 

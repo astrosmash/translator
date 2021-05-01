@@ -1,3 +1,5 @@
+#include <string.h>
+
 // Do not perform more allocations than specified.
 // Useful to prevent allocation loops
 #define MAX_ALLOCATIONS 8192
@@ -30,3 +32,6 @@ typedef enum {
 bool track_block(void*, size_t);
 void* safe_alloc(size_t);
 void safe_free(void**);
+
+// Definition
+#include "mempool.c"

@@ -17,7 +17,7 @@
 #define debug(lvl, fmt, ...)                                                                  \
     do {                                                                                      \
         if (DEBUG && DEBUG_LEVEL >= lvl)                                                      \
-            fprintf(stderr, "\n%s:%d:%s(): " fmt, __FILE__, __LINE__, __func__, __VA_ARGS__); \
+            fprintf(stderr, "\n[level %i] %s:%d:%s(): " fmt, lvl, __FILE__, __LINE__, __func__, __VA_ARGS__); \
     } while (0)
 
 // Include debug output
