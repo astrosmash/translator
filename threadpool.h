@@ -1,7 +1,8 @@
 #include <pthread.h>
+#include <signal.h>
 
 // (Mainly) from:
-// https://programmer.group/c-simple-thread-pool-based-on-pthread-implementation.html
+// https://github.com/mbrossard/threadpool
 
 
 // Maximum number of members in the thread array
@@ -31,7 +32,7 @@ typedef struct {
     pthread_t* threads;
 
     // Starting pointer of thread arguments array
-    pthread_attr_t* threads_args;
+    pthread_attr_t* threads_attrs;
 
     // Starting pointer of task queue array
     threadpool_task_t* queue;
@@ -69,18 +70,17 @@ typedef enum {
 // Thread pool error codes
 
 typedef enum {
-    threadpool_invalid = -1,
-    threadpool_lock_failed = -2,
-    threadpool_queue_full = -3,
-    threadpool_shutdown = -4,
-    threadpool_thread_failed = -5
+    threadpool_queue_full = -1,
+    threadpool_shutdown = -2,
+    threadpool_thread_failure = -3,
+    threadpool_lock_failure = -4
 } threadpool_error_t;
 
 
 // External functions
 threadpool_t* threadpool_create(size_t, size_t, size_t);
-bool threadpool_add(threadpool_t*, threadpool_task_t*, size_t);
-bool threadpool_destroy(threadpool_t*, size_t);
+ssize_t threadpool_add(threadpool_t*, threadpool_task_t*, size_t);
+ssize_t threadpool_destroy(threadpool_t*, size_t);
 
 // Definition
 #include "threadpool.c"

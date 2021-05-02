@@ -7,6 +7,7 @@ VALGRIND ?= valgrind
 
 THIS_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 PROJECT_SRC_DIR ?= $(THIS_DIR)
+PROJECT_TEST_DIR ?= $(THIS_DIR)/tests
 
 CLANG_FLAGS_COMMON += -D__NR_CPUS__=$(NPROC) -O2
 CLANG_INCLUDES_COMMON += -I.
@@ -21,6 +22,7 @@ CLANG_INCLUDES_PROJECT += $(CLANG_INCLUDES_COMMON) $(GTK_INCLUDE)
 
 NPROC := $(shell nproc)
 PROJECT_FILES := $(shell find $(PROJECT_SRC_DIR) -type f -name "*.c" -or -name "*.h")
+PROJECT_TEST_FILES := $(shell find $(PROJECT_TEST_DIR) -type f -name "*.c")
 
 CURRENT_KERNEL := $(shell uname -r | sed "s/[-].*$\//")
 PROJECT_OBJECT := translator
@@ -74,6 +76,14 @@ build: $(CLANG)
 
 builddebug: $(CLANG)
 	$(CLANG) $(CLANG_FLAGS_PROJECT) $(CLANG_INCLUDES_PROJECT) $(CLANG_FLAGS_PROJECT_DEBUG) $(PROJECT_SRC_DIR)/main.c -o $(PROJECT_OBJECT)
+
+test: $(CLANG)
+	@for FILE in $(PROJECT_TEST_FILES) ; do \
+	    echo "Running test "$${FILE}""; \
+	    $(CLANG) $(CLANG_FLAGS_PROJECT) $(CLANG_INCLUDES_PROJECT) "$${FILE}" -o $(PROJECT_TEST_DIR)/test && \
+	    $(PROJECT_TEST_DIR)/test && \
+	    rm -f $(PROJECT_TEST_DIR)/test; \
+	done
 
 clean:
 	rm -f $(PROJECT_OBJECT) a.out main.o main.plist

@@ -17,7 +17,7 @@ bool threadpool_free(threadpool_t* pool)
 
 threadpool_t* threadpool_create(size_t thread_count, size_t queue_size, size_t flags)
 {
-    assert(thread_count > MAX_THREADS && queue_size > MAX_QUEUE);
+    assert(thread_count <= MAX_THREADS && queue_size <= MAX_QUEUE);
 
     threadpool_t* pool = NULL;
     assert((pool = safe_alloc(sizeof (threadpool_t))));
@@ -25,8 +25,11 @@ threadpool_t* threadpool_create(size_t thread_count, size_t queue_size, size_t f
     // Initialize the pool
     pool->queue_size = queue_size;
     pool->threads = (pthread_t *) safe_alloc(sizeof (pthread_t) * thread_count);
-    pool->threads_args = (pthread_attr_t *) safe_alloc(sizeof (pthread_attr_t) * thread_count);
+    debug(DEBUG_TEST, "Allocated pool->threads on %p\n", pool->threads);
+    pool->threads_attrs = (pthread_attr_t *) safe_alloc(sizeof (pthread_attr_t) * thread_count);
+    debug(DEBUG_TEST, "Allocated pool->threads_attrs on %p\n", pool->threads_attrs);
     pool->queue = (threadpool_task_t *) safe_alloc(sizeof (threadpool_task_t) * thread_count);
+    debug(DEBUG_TEST, "Allocated pool->queue on %p\n", pool->queue);
 
     // Initialize mutex and conditional variables
     ssize_t res = 0;
@@ -34,41 +37,59 @@ threadpool_t* threadpool_create(size_t thread_count, size_t queue_size, size_t f
         debug(DEBUG_ERROR, "pthread_mutex_init failed %zi", res);
         goto cleanup;
     }
+    debug(DEBUG_TEST, "pthread_mutex_init %zi\n", res);
 
     if ((res = pthread_cond_init(&(pool->condition), NULL))) {
         debug(DEBUG_ERROR, "pthread_cond_init failed %zi", res);
         goto cleanup;
     }
+    debug(DEBUG_TEST, "pthread_cond_init %zi\n", res);
+
+    // Block SIGQUIT and SIGUSR1
+    sigset_t signalset;
+    sigemptyset(&signalset);
+    sigaddset(&signalset, SIGQUIT | SIGUSR1);
+
+    // Set attributes of the threads (pool-wide)
+    if ((res = pthread_sigmask(SIG_BLOCK, &signalset, NULL))) {
+        debug(DEBUG_ERROR, "pthread_sigmask failed! %zi", res);
+        goto cleanup;
+    }
+    debug(DEBUG_TEST, "pthread_sigmask %zi\n", res);
 
     // Start worker threads
-    for (size_t i = 0; i <= thread_count; ++i) {
+    for (size_t i = 0; i < thread_count; ++i) {
         // Initialize attr for specific thread
-        if ((res = pthread_attr_init(&(pool->threads_args[i])))) {
+        if ((res = pthread_attr_init(&(pool->threads_attrs[i])))) {
             debug(DEBUG_ERROR, "pthread_attr_init failed %zi for %zu", res, i);
             goto cleanup;
         }
+        debug(DEBUG_TEST, "#%zu pthread_attr_init %zi\n", i, res);
 
-        if ((res = pthread_create(&(pool->threads[i]), &(pool->threads_args[i]), threadpool_thread, pool))) {
+        if ((res = pthread_create(&(pool->threads[i]), &(pool->threads_attrs[i]), threadpool_thread, pool))) {
             debug(DEBUG_ERROR, "pthread_create failed %zi for %zu", res, i);
             if (!threadpool_destroy(pool, threadpool_immediate)) {
                 debug(DEBUG_ERROR, "threadpool_destroy failed! %zu", i);
             }
             goto cleanup;
         }
+        debug(DEBUG_TEST, "#%zu pthread_create %zi\n", i, res);
 
-        if ((res = pthread_attr_destroy(&(pool->threads_args[i])))) {
+        if ((res = pthread_attr_destroy(&(pool->threads_attrs[i])))) {
             debug(DEBUG_ERROR, "pthread_attr_destroy failed %zi for %zu", res, i);
             goto cleanup;
         }
-        ++pool->count;
+        debug(DEBUG_TEST, "#%zu pthread_attr_destroy %zi\n", i, res);
+        ++pool->thread_count;
         ++pool->started;
     }
 
+    debug(DEBUG_TEST, "initialized pool with count %zu started %zu res %zi\n", pool->count, pool->started, res);
     return pool;
 
 cleanup:
     safe_free((void**) &pool->queue);
-    safe_free((void**) &pool->threads_args);
+    safe_free((void**) &pool->threads_attrs);
     safe_free((void**) &pool->threads);
     safe_free((void**) &pool);
     return NULL;
@@ -77,14 +98,77 @@ cleanup:
 // Add task to the pool, using worker function and arguments for it.
 // Flags are currently unused.
 
-bool threadpool_add(threadpool_t* pool, threadpool_task_t* task, size_t flags)
+ssize_t threadpool_add(threadpool_t* pool, threadpool_task_t* task, size_t flags)
 {
+    ssize_t result = EXIT_SUCCESS;
+
+    assert(pool && task);
+    if (pthread_mutex_lock(&(pool->mutex))) {
+        debug(DEBUG_ERROR, "pthread_mutex_lock failed. Tasks count: %zu", pool->count);
+        result = threadpool_lock_failure;
+        return result;
+    }
+    debug(DEBUG_TEST, "pthread_mutex_lock %zi\n", result);
+
+    // Next location to store the task
+    size_t next = pool->tail + 1;
+    next = (next == pool->queue_size) ? 0 : next;
+    debug(DEBUG_TEST, "pool->tail: %zu next %zu\n", pool->tail, next);
+
+    // do  {} while (0) -- At most once.
+    do {
+        // Task queue is full.
+        if (pool->queue_size == pool->count) {
+            debug(DEBUG_ERROR, "Pool queue size is full. Tasks count: %zu", pool->count);
+            result = threadpool_queue_full;
+            break;
+        }
+        debug(DEBUG_TEST, "pool->queue_size: %zu pool->count: %zu\n", pool->queue_size, pool->count);
+
+        // Pool shutdown.
+        if (pool->shutdown) {
+            debug(DEBUG_INFO, "Pool is shutting down. Tasks count: %zu", pool->count);
+            result = threadpool_shutdown;
+            break;
+        }
+        debug(DEBUG_TEST, "pool->shutdown: %zu\n", pool->shutdown);
+
+        // Add task and its arguments to the tail of the queue.
+        pool->queue[pool->tail].function = task->function;
+        pool->queue[pool->tail].argument = task->argument;
+        debug(DEBUG_TEST, "#%zu func %p arg %p\n", pool->tail, pool->queue[pool->tail].function, pool->queue[pool->tail].argument);
+
+        // Update tail and count
+        pool->tail = next;
+        ++pool->count;
+        debug(DEBUG_TEST, "pool->tail: %zu pool->count: %zu\n", pool->tail, pool->count);
+
+        // Signal to indicate that the task has been added
+        // The pthread_cond_broadcast() function shall unblock all threads currently blocked on the specified condition variable cond.
+        // The pthread_cond_signal() function shall unblock at least one of the threads that are blocked on the specified condition variable cond (if any threads are blocked on cond).
+        if (pthread_cond_signal(&(pool->condition))) {
+            debug(DEBUG_INFO, "pthread_cond_signal failed. Tasks count: %zu", pool->count);
+            result = threadpool_lock_failure;
+            break;
+        }
+        debug(DEBUG_TEST, "pthread_cond_signal %zi\n", result);
+    } while(0);
+    // do  {} while (0) -- At most once.
+
+    // Finally, unlock the mutex
+    if (pthread_mutex_unlock(&(pool->mutex))) {
+        debug(DEBUG_ERROR, "pthread_mutex_unlock failed. Tasks count: %zu", pool->count);
+        result = threadpool_lock_failure;
+    }
+    debug(DEBUG_TEST, "pthread_mutex_unlock %zi\n", result);
+
+    return result;
 }
 
 // Destroy existing pool.
 // Flags specify whether termination should be graceful or immediate (regardless of whether it's empty or not).
 // Graceful termination waits for threads to join.
 
-bool threadpool_destroy(threadpool_t* pool, size_t flags)
+ssize_t threadpool_destroy(threadpool_t* pool, size_t flags)
 {
 }

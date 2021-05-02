@@ -14,6 +14,8 @@
 #define DEBUG_VERBOSE 4
 // 5: full trace of received content
 #define DEBUG_FULLDBG 5
+// 6: full trace of test execution
+#define DEBUG_TEST 6
 #define debug(lvl, fmt, ...)                                                                  \
     do {                                                                                      \
         if (DEBUG && DEBUG_LEVEL >= lvl)                                                      \
@@ -22,7 +24,9 @@
 
 // Include debug output
 #define DEBUG 1
+#ifndef DEBUG_LEVEL
 #define DEBUG_LEVEL DEBUG_FULLDBG
+#endif
 
 typedef enum {
     false = 0,
