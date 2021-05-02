@@ -12,7 +12,6 @@
 // Maximum number of members in the task queue array
 #define MAX_QUEUE 256
 
-
 typedef struct {
     // Worker function
     void (*function)(void *);
@@ -31,8 +30,11 @@ typedef struct {
     // Starting pointer of thread array
     pthread_t* threads;
 
+    // Starting pointer of thread arguments array
+    pthread_attr_t* threads_args;
+
     // Starting pointer of task queue array
-    threadpool_task_t queue;
+    threadpool_task_t* queue;
 
     // Number of threads in the array
     size_t thread_count;
