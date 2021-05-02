@@ -13,9 +13,33 @@
 // Maximum number of members in the task queue array
 #define MAX_QUEUE 256
 
+
+// Thread pool flags
+
+typedef enum {
+    threadpool_immediate = 1,
+    threadpool_graceful
+} threadpool_destroy_flags_t;
+
+// Threadpool shutdown modes
+
+typedef enum {
+    threadpool_shutdown_immediate = 1,
+    threadpool_shutdown_graceful
+} threadpool_shutdown_t;
+
+// Thread pool error codes
+
+typedef enum {
+    threadpool_queue_full = -1,
+    threadpool_shutdown = -2,
+    threadpool_thread_failure = -3,
+    threadpool_lock_failure = -4
+} threadpool_error_t;
+
 typedef struct {
     // Worker function
-    void (*function)(void *);
+    void* (*function)(void *);
 
     // Arguments to the worker function
     void *argument;
@@ -53,28 +77,11 @@ typedef struct {
     size_t count;
 
     // If current state of thread pool is shutdown
-    size_t shutdown;
+    threadpool_shutdown_t shutdown;
 
     // Number of threads running
     size_t started;
 } threadpool_t;
-
-
-// Thread pool flags
-
-typedef enum {
-    threadpool_immediate = 1,
-    threadpool_graceful
-} threadpool_destroy_flags_t;
-
-// Thread pool error codes
-
-typedef enum {
-    threadpool_queue_full = -1,
-    threadpool_shutdown = -2,
-    threadpool_thread_failure = -3,
-    threadpool_lock_failure = -4
-} threadpool_error_t;
 
 
 // External functions

@@ -25,9 +25,13 @@ threadpool_t* threadpool_create_test(void) {
 }
 
 // threadpool_add()
-void threadpool_task1(void* arg1)
+void* threadpool_task1(void* arg1)
 {
     debug(DEBUG_TEST, "task1 %s", arg1);
+
+    // this SHOULD be printed on console as we print task return value
+    // We compare its first byte with char 't', this should be always true within tests
+    return "threadpool_task1 ok\n";
 }
 void threadpool_add_test(threadpool_t* pool)
 {
@@ -37,6 +41,10 @@ void threadpool_add_test(threadpool_t* pool)
     char* threadpool_task1_arg1 = "success 1\n";
     char* threadpool_task1_arg2 = "success 2\n";
     debug(DEBUG_TEST, "arg1 %p, arg2 %p", threadpool_task1_arg1, threadpool_task1_arg2);
+
+    assert(strcmp(threadpool_task1(threadpool_task1_arg1), "threadpool_task1 ok"));
+    assert(strcmp(threadpool_task1(threadpool_task1_arg1), "threadpool_task1 ok\n") == 0);
+    assert(strcmp(threadpool_task1(threadpool_task1_arg2), "threadpool_task1 ok\n") == 0);
 
     threadpool_task_t task1 = {&threadpool_task1, threadpool_task1_arg1};
     res = threadpool_add(pool, &task1, flags);
@@ -57,12 +65,42 @@ void threadpool_add_test(threadpool_t* pool)
     assert(strcmp(pool->queue[1].argument, pool->queue[0].argument));
 }
 
+// threadpool_destroy()
+void threadpool_destroy_test_graceful(threadpool_t* pool)
+{
+    size_t flags = threadpool_graceful;
+    size_t res = EXIT_SUCCESS;
+
+    assert(!pool->shutdown);
+
+    res = threadpool_destroy(pool, flags);
+    assert(res == EXIT_SUCCESS);
+    assert(pool->shutdown == threadpool_shutdown_graceful);
+}
+void threadpool_destroy_test_immediate(threadpool_t* pool)
+{
+    size_t flags = threadpool_immediate;
+    size_t res = EXIT_SUCCESS;
+
+    assert(!pool->shutdown);
+
+    res = threadpool_destroy(pool, flags);
+    assert(res == EXIT_SUCCESS);
+    assert(pool->shutdown == threadpool_shutdown_immediate);
+}
+
+
 int main(int argc, char** argv)
 {
     debug(DEBUG_INFO, "Starting... %c", '\0');
 
-    threadpool_t* testpool = threadpool_create_test();
-    threadpool_add_test(testpool);
+    threadpool_t* testpool_immediate = threadpool_create_test();
+    threadpool_add_test(testpool_immediate);
+    threadpool_destroy_test_immediate(testpool_immediate);
+
+    threadpool_t* testpool_graceful = threadpool_create_test();
+    threadpool_add_test(testpool_graceful);
+    threadpool_destroy_test_graceful(testpool_graceful);
 
     return (EXIT_SUCCESS);
 }

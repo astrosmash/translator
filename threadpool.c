@@ -131,7 +131,7 @@ ssize_t threadpool_add(threadpool_t* pool, threadpool_task_t* task, size_t flags
             result = threadpool_shutdown;
             break;
         }
-        debug(DEBUG_TEST, "pool->shutdown: %zu\n", pool->shutdown);
+        debug(DEBUG_TEST, "pool->shutdown: %u\n", pool->shutdown);
 
         // Add task and its arguments to the tail of the queue.
         pool->queue[pool->tail].function = task->function;
@@ -152,7 +152,7 @@ ssize_t threadpool_add(threadpool_t* pool, threadpool_task_t* task, size_t flags
             break;
         }
         debug(DEBUG_TEST, "pthread_cond_signal %zi\n", result);
-    } while(0);
+    } while (0);
     // do  {} while (0) -- At most once.
 
     // Finally, unlock the mutex
@@ -171,4 +171,72 @@ ssize_t threadpool_add(threadpool_t* pool, threadpool_task_t* task, size_t flags
 
 ssize_t threadpool_destroy(threadpool_t* pool, size_t flags)
 {
+    ssize_t result = EXIT_SUCCESS;
+
+    assert(pool);
+    if (pthread_mutex_lock(&(pool->mutex))) {
+        debug(DEBUG_ERROR, "pthread_mutex_lock failed. Tasks count: %zu", pool->count);
+        result = threadpool_lock_failure;
+        return result;
+    }
+    debug(DEBUG_TEST, "pthread_mutex_lock %zi\n", result);
+
+    // do  {} while (0) -- At most once.
+    do {
+        // Check if the pool is already being shutdown.
+        if (pool->shutdown) {
+            debug(DEBUG_ERROR, "Pool is already being shutdown. Tasks count: %zu", pool->count);
+            result = threadpool_shutdown;
+            break;
+        }
+        pool->shutdown = (flags & threadpool_graceful) ? threadpool_shutdown_graceful : threadpool_shutdown_immediate;
+        debug(DEBUG_TEST, "pool->shutdown: %u\n", pool->shutdown);
+
+        // Signal to indicate the shutdown
+        if (pthread_cond_broadcast(&(pool->condition))) {
+            debug(DEBUG_INFO, "pthread_cond_broadcast failed. Tasks count: %zu", pool->count);
+            result = threadpool_lock_failure;
+            break;
+        }
+        debug(DEBUG_TEST, "pthread_cond_broadcast %zi\n", result);
+
+        if (pthread_mutex_unlock(&(pool->mutex))) {
+            debug(DEBUG_ERROR, "pthread_mutex_unlock failed. Tasks count: %zu", pool->count);
+            result = threadpool_lock_failure;
+            break;
+        }
+        debug(DEBUG_TEST, "pthread_mutex_unlock %zi\n", result);
+
+        // Wait for the threads to terminate
+        for (size_t i = 0; i < pool->thread_count; ++i) {
+            size_t thread_result_size = 512;
+            void* thread_result = safe_alloc(thread_result_size);
+
+            if (pthread_join(pool->threads[i], thread_result)) {
+                debug(DEBUG_ERROR, "#%zu pthread_join failed. Tasks count: %zu", i, pool->count);
+                result = threadpool_thread_failure;
+                break;
+            }
+
+            if (!thread_result) {
+                debug(DEBUG_ERROR, "#%zu thread_result is NULL. Tasks count: %zu", i, pool->count);
+                result = threadpool_thread_failure;
+                break;
+            }
+            debug(DEBUG_TEST, "#%zu pthread_join/thread_result %zi\n", i, result);
+
+#ifdef DEBUG
+            // Print it as a string if it contains 't'
+            // return literal is "threadpool_task1" within tests
+            if (memchr(thread_result, 't', thread_result_size)) {
+                debug(DEBUG_TEST, "#%zu got char %c in thread_result", i, *(char*) thread_result);
+                debug(DEBUG_TEST, "#%zu thread_result string %s\n", i, (char*) thread_result);
+            }
+#endif
+            safe_free((void**) &thread_result);
+        }
+    } while (0);
+    // do  {} while (0) -- At most once.
+
+    return result;
 }
