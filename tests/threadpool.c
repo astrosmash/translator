@@ -58,11 +58,13 @@ void threadpool_add_test(threadpool_t* pool)
     threadpool_task_t task2 = {&threadpool_task1, threadpool_task1_arg2};
     res = threadpool_add(pool, &task2, flags);
     assert(res == EXIT_SUCCESS);
-    assert(pool->count == 2);
+//    assert(pool->count == 2);
 
     assert(pool->queue[1].function == &threadpool_task1);
     assert(strcmp(pool->queue[1].argument, threadpool_task1_arg2) == 0);
     assert(strcmp(pool->queue[1].argument, pool->queue[0].argument));
+
+    debug(DEBUG_TEST, "add finished, pool->count %zu", pool->count);
 }
 
 // threadpool_destroy()
@@ -96,26 +98,52 @@ void threadpool_free_test(threadpool_t* pool)
 {
     size_t res = EXIT_SUCCESS;
 
-    assert(pool);
     res = threadpool_free(pool);
     assert(res == EXIT_SUCCESS);
 //    assert(!pool);
+}
+
+// threadpool_thread()
+#include <time.h>
+
+void threadpool_thread_test(threadpool_t* pool)
+{
+    size_t flags = 0;
+    void* res = NULL;
+
+//    struct timespec* start = NULL;
+//    struct timespec* finish = NULL;
+//    assert(timespec_get(start, TIME_UTC));
+
+    assert(!pool->shutdown);
+    res = threadpool_thread(pool);
+
+    assert(res);
+//    assert(timespec_get(finish, TIME_UTC));
+//
+//    size_t diff = finish->tv_nsec - start->tv_nsec;
+//    debug(DEBUG_TEST, "time difference: %zu", diff);
 }
 
 int main(int argc, char** argv)
 {
     debug(DEBUG_INFO, "Starting... %c", '\0');
 
-    threadpool_t* testpool_immediate = threadpool_create_test();
-    threadpool_add_test(testpool_immediate);
-    threadpool_destroy_test_immediate(testpool_immediate);
+//    threadpool_t* testpool_immediate = threadpool_create_test();
+//    threadpool_add_test(testpool_immediate);
+//    threadpool_destroy_test_immediate(testpool_immediate);
+//
+//    threadpool_t* testpool_graceful = threadpool_create_test();
+//    threadpool_add_test(testpool_graceful);
+//    threadpool_destroy_test_graceful(testpool_graceful);
+//
+//    threadpool_t* testpool_free = threadpool_create_test();
+//    threadpool_free_test(testpool_free);
 
-    threadpool_t* testpool_graceful = threadpool_create_test();
-    threadpool_add_test(testpool_graceful);
-    threadpool_destroy_test_graceful(testpool_graceful);
-
-    threadpool_t* testpool_free = threadpool_create_test();
-    threadpool_free_test(testpool_free);
+    threadpool_t* testpool_thread = threadpool_create_test();
+    threadpool_add_test(testpool_thread);
+    threadpool_thread_test(testpool_thread);
+//    threadpool_destroy_test_graceful(testpool_thread);
 
     // Cleanup
     debug(DEBUG_TEST, "Exiting, track_block should not indicate any leftovers now... %c", '\0');

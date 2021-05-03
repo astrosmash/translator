@@ -7,6 +7,7 @@ static void* threadpool_thread(void *threadpool)
     threadpool_t* pool = (threadpool_t *) threadpool;
     threadpool_task_t task = {NULL};
     void* func_res = NULL;
+    debug(DEBUG_TEST, "started threads: %zu", pool->started);
 
     do {
         // Lock the mutex to get the conditional variable
@@ -16,13 +17,14 @@ static void* threadpool_thread(void *threadpool)
         }
 
         // Wait on conditional variable
-        while (pool->count > 0 && !pool->shutdown) {
+        while (pool->count == 0 && !pool->shutdown) {
             // Task queue is empty.
             // Thread pool is locked when not used
             if (pthread_cond_wait(&(pool->condition), &(pool->mutex))) {
-                debug(DEBUG_INFO, "pthread_cond_signal failed. Tasks count: %zu", pool->count);
+                debug(DEBUG_INFO, "pthread_cond_wait failed. Tasks count: %zu", pool->count);
                 return NULL;
             }
+            debug(DEBUG_TEST, "pthread_cond_wait ok. Tasks count: %zu", pool->count);
         }
 
         // Got outside of while loop - stop processing
@@ -31,30 +33,39 @@ static void* threadpool_thread(void *threadpool)
             debug(DEBUG_INFO, "Closing processing. Tasks count: %zu"
                     "(threadpool_shutdown_immediate if > 0)", pool->count);
             break;
-
-            // Get the first task from the task queue.
-            task.function = pool->queue[pool->head].function;
-            task.argument = pool->queue[pool->head].argument;
-
-            // Update head and count
-            ++pool->head;
-            // Set head to zero if we are in the bottom of the pool
-            pool->head = (pool->queue_size == pool->head) ? 0 : pool->head;
-            --pool->count;
-
-            // Finally, unlock the mutex
-            if (pthread_mutex_unlock(&(pool->mutex))) {
-                debug(DEBUG_ERROR, "pthread_mutex_unlock failed. Tasks count: %zu", pool->count);
-                return NULL;
-            }
-            // Start the function
-            (*(task.function)(task.argument));
         }
+
+        debug(DEBUG_TEST, "PRE pool->head: %zu tasks->count: %zu", pool->head, pool->count);
+        // Get the first task from the task queue.
+        task.function = pool->queue[pool->head].function;
+        task.argument = pool->queue[pool->head].argument;
+
+        // Update head and count
+        ++pool->head;
+        // Set head to zero if we are in the bottom of the pool
+        pool->head = (pool->queue_size == pool->head) ? 0 : pool->head;
+        --pool->count;
+        debug(DEBUG_TEST, "POST pool->head: %zu tasks->count: %zu", pool->head, pool->count);
+
+        // Finally, unlock the mutex
+        if (pthread_mutex_unlock(&(pool->mutex))) {
+            debug(DEBUG_ERROR, "pthread_mutex_unlock failed. Tasks count: %zu", pool->count);
+            return NULL;
+        }
+        // Start the function
+        (*(task.function)(task.argument));
 
     } while (true);
 
     // Update the number of running threads
     --pool->started;
+    debug(DEBUG_TEST, "started threads: %zu", pool->started);
+
+    // Unlock the mutex - just in case it's locked
+    if (pthread_mutex_unlock(&(pool->mutex))) {
+        debug(DEBUG_ERROR, "pthread_mutex_unlock failed. Tasks count: %zu", pool->count);
+        return NULL;
+    }
 
     pthread_exit(func_res);
     return (func_res);
