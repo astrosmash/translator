@@ -4,8 +4,60 @@
 static void* threadpool_thread(void *threadpool)
 {
     assert(threadpool);
-    threadpool_t* pool = (threadpool_t *)threadpool;
+    threadpool_t* pool = (threadpool_t *) threadpool;
     threadpool_task_t task = {NULL};
+    void* func_res = NULL;
+
+    do {
+        // Lock the mutex to get the conditional variable
+        if (pthread_mutex_lock(&(pool->mutex))) {
+            debug(DEBUG_ERROR, "pthread_mutex_lock failed. Tasks count: %zu", pool->count);
+            return NULL;
+        }
+
+        // Wait on conditional variable
+        while (pool->count > 0 && !pool->shutdown) {
+            // Task queue is empty.
+            // Thread pool is locked when not used
+            if (pthread_cond_wait(&(pool->condition), &(pool->mutex))) {
+                debug(DEBUG_INFO, "pthread_cond_signal failed. Tasks count: %zu", pool->count);
+                return NULL;
+            }
+        }
+
+        // Got outside of while loop - stop processing
+        if ((pool->shutdown == threadpool_shutdown_immediate) ||
+                (pool->shutdown == threadpool_graceful && pool->count == 0)) {
+            debug(DEBUG_INFO, "Closing processing. Tasks count: %zu"
+                    "(threadpool_shutdown_immediate if > 0)", pool->count);
+            break;
+
+            // Get the first task from the task queue.
+            task.function = pool->queue[pool->head].function;
+            task.argument = pool->queue[pool->head].argument;
+
+            // Update head and count
+            ++pool->head;
+            // Set head to zero if we are in the bottom of the pool
+            pool->head = (pool->queue_size == pool->head) ? 0 : pool->head;
+            --pool->count;
+
+            // Finally, unlock the mutex
+            if (pthread_mutex_unlock(&(pool->mutex))) {
+                debug(DEBUG_ERROR, "pthread_mutex_unlock failed. Tasks count: %zu", pool->count);
+                return NULL;
+            }
+            // Start the function
+            (*(task.function)(task.argument));
+        }
+
+    } while (true);
+
+    // Update the number of running threads
+    --pool->started;
+
+    pthread_exit(func_res);
+    return (func_res);
 }
 
 // Release the memory requested by the thread pool
