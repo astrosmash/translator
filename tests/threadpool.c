@@ -75,7 +75,8 @@ void threadpool_destroy_test_graceful(threadpool_t* pool)
 
     res = threadpool_destroy(pool, flags);
     assert(res == EXIT_SUCCESS);
-    assert(pool->shutdown == threadpool_shutdown_graceful);
+//    assert(pool->shutdown == threadpool_shutdown_graceful);
+    debug(DEBUG_TEST, "still have dangling pool ptr %p", pool);
 }
 void threadpool_destroy_test_immediate(threadpool_t* pool)
 {
@@ -86,9 +87,20 @@ void threadpool_destroy_test_immediate(threadpool_t* pool)
 
     res = threadpool_destroy(pool, flags);
     assert(res == EXIT_SUCCESS);
-    assert(pool->shutdown == threadpool_shutdown_immediate);
+//    assert(pool->shutdown == threadpool_shutdown_immediate);
+    debug(DEBUG_TEST, "still have dangling pool ptr %p", pool);
 }
 
+// threadpool_free()
+void threadpool_free_test(threadpool_t* pool)
+{
+    size_t res = EXIT_SUCCESS;
+
+    assert(pool);
+    res = threadpool_free(pool);
+    assert(res == EXIT_SUCCESS);
+//    assert(!pool);
+}
 
 int main(int argc, char** argv)
 {
@@ -102,5 +114,14 @@ int main(int argc, char** argv)
     threadpool_add_test(testpool_graceful);
     threadpool_destroy_test_graceful(testpool_graceful);
 
-    return (EXIT_SUCCESS);
+    threadpool_t* testpool_free = threadpool_create_test();
+    threadpool_free_test(testpool_free);
+
+    // Cleanup
+    debug(DEBUG_TEST, "Exiting, track_block should not indicate any leftovers now... %c", '\0');
+    if (track_block(NULL, MODE_GLOBAL_CLEANUP_ON_SHUTDOWN)) {
+        return (EXIT_SUCCESS);
+    }
+    debug(DEBUG_ERROR, "track_block failed! %c", '\0');
+    return (EXIT_FAILURE);
 }

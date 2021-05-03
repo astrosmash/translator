@@ -3,12 +3,55 @@
 
 static void* threadpool_thread(void *threadpool)
 {
+    assert(threadpool);
+    threadpool_t* pool = (threadpool_t *)threadpool;
+    threadpool_task_t task = {NULL};
 }
 
 // Release the memory requested by the thread pool
 
-bool threadpool_free(threadpool_t* pool)
+ssize_t threadpool_free(threadpool_t* pool)
 {
+    ssize_t result = EXIT_SUCCESS;
+    assert(pool && pool->started > 0);
+
+    if (pool->threads) {
+        safe_free((void**) &pool->queue);
+        safe_free((void**) &pool->threads_attrs);
+        safe_free((void**) &pool->threads);
+
+        if (pthread_mutex_lock(&(pool->mutex))) {
+            debug(DEBUG_ERROR, "pthread_mutex_lock failed. Tasks count: %zu", pool->count);
+            result = threadpool_lock_failure;
+            return result;
+        }
+        debug(DEBUG_TEST, "pthread_mutex_lock %zi\n", result);
+
+        if (pthread_mutex_unlock(&(pool->mutex))) {
+            debug(DEBUG_ERROR, "pthread_mutex_unlock failed. Tasks count: %zu", pool->count);
+            result = threadpool_lock_failure;
+            return result;
+        }
+        debug(DEBUG_TEST, "pthread_mutex_unlock %zi\n", result);
+
+        if (pthread_mutex_destroy(&(pool->mutex))) {
+            debug(DEBUG_ERROR, "pthread_mutex_destroy failed. Tasks count: %zu", pool->count);
+            result = threadpool_lock_failure;
+            return result;
+        }
+        debug(DEBUG_TEST, "pthread_mutex_destroy %zi\n", result);
+
+        if (pthread_cond_destroy(&(pool->condition))) {
+            debug(DEBUG_ERROR, "pthread_cond_destroy failed. Tasks count: %zu", pool->count);
+            result = threadpool_lock_failure;
+            return result;
+        }
+        debug(DEBUG_TEST, "pthread_cond_destroy %zi\n", result);
+    }
+    safe_free((void**) &pool);
+
+    debug(DEBUG_TEST, "threadpool_free done, exiting. %zi\n", result);
+    return result;
 }
 
 
@@ -88,10 +131,7 @@ threadpool_t* threadpool_create(size_t thread_count, size_t queue_size, size_t f
     return pool;
 
 cleanup:
-    safe_free((void**) &pool->queue);
-    safe_free((void**) &pool->threads_attrs);
-    safe_free((void**) &pool->threads);
-    safe_free((void**) &pool);
+    threadpool_free(pool);
     return NULL;
 }
 
@@ -237,6 +277,10 @@ ssize_t threadpool_destroy(threadpool_t* pool, size_t flags)
         }
     } while (0);
     // do  {} while (0) -- At most once.
+
+    if (result == EXIT_SUCCESS) {
+        threadpool_free(pool);
+    }
 
     return result;
 }

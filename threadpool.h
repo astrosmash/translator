@@ -88,6 +88,7 @@ typedef struct {
 threadpool_t* threadpool_create(size_t, size_t, size_t);
 ssize_t threadpool_add(threadpool_t*, threadpool_task_t*, size_t);
 ssize_t threadpool_destroy(threadpool_t*, size_t);
+ssize_t threadpool_free(threadpool_t*);
 
 // Definition
 #include "threadpool.c"
