@@ -1,15 +1,34 @@
 // Helper function for quick sort to keep NULLs on top
 
-static int track_block_sort(const void* ptr1, const void* ptr2)
+int track_block_sort(const void* ptr1, const void* ptr2)
 {
-    // !ptr1 && !ptr2 falls there
-    if (ptr1 == ptr2) {
+    const void* arg1 = *(const void **) ptr1;
+    const void* arg2 = *(const void **) ptr2;
+
+    debug(DEBUG_TEST, "arg1: %p arg2: %p\n", arg1, arg2);
+
+    // !arg1 && !arg2 falls there
+    if (arg1 == arg2) {
         return 0;
     }
 
-    if (!ptr1) return -1;
-    if (!ptr2) return 1;
+    if (!arg1) return 1;
+    if (!arg2) return -1;
+
+    return (arg1 - arg2);
 }
+
+// Helper function to print block table.
+
+void print_table_content(void** start, size_t num)
+{
+    assert(start);
+    for (size_t i = 0; i <= num; ++i) {
+        debug(DEBUG_TEST, "allocated_blocks#%zu %p", i, *(start + i));
+    }
+    debug(DEBUG_TEST, "%c", '\n');
+}
+
 
 // Allocation tracker.
 
@@ -28,9 +47,6 @@ bool track_block(void* ptr, size_t mode)
         }
     }
 
-    qsort(pool, pool->count, sizeof (void *), track_block_sort);
-
-
     if (mode & MODE_ALLOCATION) {
         assert(ptr);
 
@@ -48,7 +64,22 @@ bool track_block(void* ptr, size_t mode)
             pool->allocated_blocks[pool->count] = ptr;
         } else {
             debug(DEBUG_ERROR, "Failed to insert %p at pos %zu - found %p there", ptr, pool->count, pool->allocated_blocks[pool->count]);
-            return false;
+
+#ifdef DEBUG
+            print_table_content((void **)&(pool->allocated_blocks), pool->count);
+#endif
+            // Try sorting and try again
+            qsort(pool, pool->count + 1, sizeof (void *), track_block_sort);
+#ifdef DEBUG
+            print_table_content((void **)&(pool->allocated_blocks), pool->count);
+#endif
+
+            if (!(pool->allocated_blocks[pool->count])) {
+                pool->allocated_blocks[pool->count] = ptr;
+            } else {
+                debug(DEBUG_ERROR, "Failed to insert %p at pos %zu - found %p there, sorting did not help!", ptr, pool->count, pool->allocated_blocks[pool->count]);
+                return false;
+            }
         }
         debug(DEBUG_VERBOSE, "Inserted %p at pos %zu", ptr, pool->count);
         return true;
@@ -66,15 +97,9 @@ bool track_block(void* ptr, size_t mode)
         }
 
         for (size_t i = pool->count; i > 0; --i) {
-#ifdef DEBUG
-            for (size_t j = pool->count; j > 0; --j) {
-                debug(DEBUG_TEST, "allocated_blocks#%zu %p", j, pool->allocated_blocks[j]);
-            }
-#endif
             debug(DEBUG_FULLDBG, "Looking for %p, found %p at pos %zu", ptr, pool->allocated_blocks[i], i);
             if (pool->allocated_blocks[i] == ptr) {
                 pool->allocated_blocks[i] = NULL;
-
                 debug(DEBUG_VERBOSE, "Removed %p at pos %zu, now allocated: %zu", ptr, i, pool->count);
                 --pool->count;
                 return true;

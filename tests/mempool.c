@@ -27,13 +27,6 @@ void track_block_sort_test(void)
         (void*) 0x7fecc84118cd
     };
     void* ordered_blocks[16] = {
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
         (void*) 0x7fecc84118cd,
         (void*) 0x7fecc8412812,
         (void*) 0x7fecc841288a,
@@ -43,6 +36,13 @@ void track_block_sort_test(void)
         (void*) 0x7fecc84128ce,
         (void*) 0x7fecc84128dd,
         (void*) 0x7fecc87128aa,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL
     };
 
     print_table_content((void **) &unordered_blocks, blocks_len - 1);

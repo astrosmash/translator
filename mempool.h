@@ -23,6 +23,9 @@ typedef enum {
 } track_block_modes_t;
 
 // External functions
+int track_block_sort(const void*, const void*);
+void print_table_content(void**, size_t);
+
 bool track_block(void*, size_t);
 void* safe_alloc(size_t);
 void safe_free(void**);
