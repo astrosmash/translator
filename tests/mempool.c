@@ -45,7 +45,7 @@ void track_block_test(void)
         assert(track_block(test_block, MODE_ALLOCATION));
     }
 
-    for (size_t i = 0; i < MAX_ALLOCATIONS; ++i) {
+    for (size_t i = 1; i < MAX_ALLOCATIONS; ++i) {
         assert(track_block(test_block, MODE_REMOVAL));
     }
 

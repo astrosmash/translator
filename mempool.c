@@ -7,7 +7,8 @@ static int track_block_sort(const void* ptr1, const void* ptr2)
         return 0;
     }
 
-    return (ptr1 - ptr2);
+    if (!ptr1) return -1;
+    if (!ptr2) return 1;
 }
 
 // Allocation tracker.

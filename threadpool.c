@@ -79,10 +79,6 @@ ssize_t threadpool_free(threadpool_t* pool)
     assert(pool && pool->started == 0);
 
     if (pool->threads) {
-        safe_free((void**) &pool->queue);
-        safe_free((void**) &pool->threads_attrs);
-        safe_free((void**) &pool->threads);
-
         if (pthread_mutex_lock(&(pool->mutex))) {
             debug(DEBUG_ERROR, "pthread_mutex_lock failed. Tasks count: %zu", pool->count);
             result = threadpool_lock_failure;
@@ -110,6 +106,10 @@ ssize_t threadpool_free(threadpool_t* pool)
             return result;
         }
         debug(DEBUG_TEST, "pthread_cond_destroy %zi\n", result);
+
+        safe_free((void**) &pool->queue);
+        safe_free((void**) &pool->threads_attrs);
+        safe_free((void**) &pool->threads);
     }
     safe_free((void**) &pool);
 
