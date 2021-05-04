@@ -5,7 +5,7 @@
 // threadpool_create()
 threadpool_t* threadpool_create_test(void) {
 
-    size_t thread_count = MAX_THREADS-1;
+    size_t thread_count = 1;
     size_t queue_size = MAX_QUEUE/2;
     size_t flags = 0;
 
@@ -25,9 +25,16 @@ threadpool_t* threadpool_create_test(void) {
 }
 
 // threadpool_add()
-void* threadpool_task1(void* arg1)
+void* threadpool_task1(composite_arg_t* arg1)
 {
-    debug(DEBUG_TEST, "task1 %s", arg1);
+    void* arg = arg1->arg;
+    void* retval = arg1->block_to_store_retval;
+
+    debug(DEBUG_TEST, "task1 %s, block to store retval %p", arg, retval);
+
+    if (retval) {
+        strncpy(retval, arg, strlen(arg));
+    }
 
     // this SHOULD be printed on console as we print task return value
     // We compare its first byte with char 't', this should be always true within tests
@@ -37,33 +44,50 @@ void threadpool_add_test(threadpool_t* pool)
 {
     size_t flags = 0;
     size_t res = EXIT_SUCCESS;
+    struct timespec wait_for_ret = { .tv_sec = 1 };
 
-    char* threadpool_task1_arg1 = "success 1\n";
-    char* threadpool_task1_arg2 = "success 2\n";
+    composite_arg_t* arg1 = safe_alloc(sizeof(composite_arg_t));
+    composite_arg_t* arg2 = safe_alloc(sizeof(composite_arg_t));
+
+    char* threadpool_task1_arg1 = "success 1\t";
+    char* threadpool_task1_arg2 = "success 2\t";
+    arg1->arg = threadpool_task1_arg1;
+    arg2->arg = threadpool_task1_arg2;
+
     debug(DEBUG_TEST, "arg1 %p, arg2 %p", threadpool_task1_arg1, threadpool_task1_arg2);
 
-    assert(strcmp(threadpool_task1(threadpool_task1_arg1), "threadpool_task1 ok"));
-    assert(strcmp(threadpool_task1(threadpool_task1_arg1), "threadpool_task1 ok\n") == 0);
-    assert(strcmp(threadpool_task1(threadpool_task1_arg2), "threadpool_task1 ok\n") == 0);
+    assert(strcmp(threadpool_task1(arg1), "threadpool_task1 ok"));
+    assert(strcmp(threadpool_task1(arg1), "threadpool_task1 ok\n") == 0);
+    assert(strcmp(threadpool_task1(arg2), "threadpool_task1 ok\n") == 0);
 
-    threadpool_task_t task1 = {&threadpool_task1, threadpool_task1_arg1};
+    threadpool_task_t task1 = {&threadpool_task1, arg1};
     res = threadpool_add(pool, &task1, flags);
     assert(res == EXIT_SUCCESS);
     assert(pool->count == 1);
 
     assert(pool->queue[0].function == &threadpool_task1);
-    assert(strcmp(pool->queue[0].argument, threadpool_task1_arg1) == 0);
-    assert(strcmp(pool->queue[0].argument, "fake"));
+    assert(strcmp(pool->queue[0].argument->arg, threadpool_task1_arg1) == 0);
+    assert(strcmp(pool->queue[0].argument->arg, "fake"));
 
-    threadpool_task_t task2 = {&threadpool_task1, threadpool_task1_arg2};
+    nanosleep(&wait_for_ret, NULL);
+    assert(strcmp(pool->queue[0].argument->block_to_store_retval, threadpool_task1_arg1) == 0);
+    assert(strcmp(pool->queue[0].argument->block_to_store_retval, "fake"));
+
+    threadpool_task_t task2 = {&threadpool_task1, arg2};
     res = threadpool_add(pool, &task2, flags);
     assert(res == EXIT_SUCCESS);
 //    assert(pool->count == 2);
 
     assert(pool->queue[1].function == &threadpool_task1);
-    assert(strcmp(pool->queue[1].argument, threadpool_task1_arg2) == 0);
-    assert(strcmp(pool->queue[1].argument, pool->queue[0].argument));
+    assert(strcmp(pool->queue[1].argument->arg, threadpool_task1_arg2) == 0);
+    assert(strcmp(pool->queue[1].argument->arg, pool->queue[0].argument->arg));
 
+    nanosleep(&wait_for_ret, NULL);
+    assert(strcmp(pool->queue[1].argument->block_to_store_retval, threadpool_task1_arg2) == 0);
+    assert(strcmp(pool->queue[1].argument->block_to_store_retval, "fake"));
+
+    safe_free((void**) &arg1);
+    safe_free((void**) &arg2);
     debug(DEBUG_TEST, "add finished, pool->count %zu", pool->count);
 }
 
@@ -98,6 +122,8 @@ void threadpool_free_test(threadpool_t* pool)
 {
     size_t res = EXIT_SUCCESS;
 
+    pool->started = 0;
+
     res = threadpool_free(pool);
     assert(res == EXIT_SUCCESS);
 //    assert(!pool);
@@ -111,39 +137,39 @@ void threadpool_thread_test(threadpool_t* pool)
     size_t flags = 0;
     void* res = NULL;
 
-//    struct timespec* start = NULL;
-//    struct timespec* finish = NULL;
-//    assert(timespec_get(start, TIME_UTC));
+    struct timespec start = {0};
+    struct timespec finish = {0};
+    assert(timespec_get(&start, TIME_UTC));
 
     assert(!pool->shutdown);
     res = threadpool_thread(pool);
 
     assert(res);
-//    assert(timespec_get(finish, TIME_UTC));
-//
-//    size_t diff = finish->tv_nsec - start->tv_nsec;
-//    debug(DEBUG_TEST, "time difference: %zu", diff);
+    assert(timespec_get(&finish, TIME_UTC));
+
+    size_t diff = finish.tv_nsec - start.tv_nsec;
+    debug(DEBUG_TEST, "time difference: %zu", diff);
 }
 
 int main(int argc, char** argv)
 {
-    debug(DEBUG_INFO, "Starting... %c", '\0');
+    debug(DEBUG_INFO, "Threadpool test starting... %c", '\n');
 
-//    threadpool_t* testpool_immediate = threadpool_create_test();
-//    threadpool_add_test(testpool_immediate);
-//    threadpool_destroy_test_immediate(testpool_immediate);
-//
-//    threadpool_t* testpool_graceful = threadpool_create_test();
-//    threadpool_add_test(testpool_graceful);
-//    threadpool_destroy_test_graceful(testpool_graceful);
-//
-//    threadpool_t* testpool_free = threadpool_create_test();
-//    threadpool_free_test(testpool_free);
+    threadpool_t* testpool_immediate = threadpool_create_test();
+    threadpool_add_test(testpool_immediate);
+    threadpool_destroy_test_immediate(testpool_immediate);
+
+    threadpool_t* testpool_graceful = threadpool_create_test();
+    threadpool_add_test(testpool_graceful);
+    threadpool_destroy_test_graceful(testpool_graceful);
+
+    threadpool_t* testpool_free = threadpool_create_test();
+    threadpool_free_test(testpool_free);
 
     threadpool_t* testpool_thread = threadpool_create_test();
     threadpool_add_test(testpool_thread);
     threadpool_thread_test(testpool_thread);
-//    threadpool_destroy_test_graceful(testpool_thread);
+    threadpool_destroy_test_graceful(testpool_thread);
 
     // Cleanup
     debug(DEBUG_TEST, "Exiting, track_block should not indicate any leftovers now... %c", '\0');

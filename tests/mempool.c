@@ -70,7 +70,7 @@ void track_block_test(void)
 
 int main(int argc, char** argv)
 {
-    debug(DEBUG_INFO, "Mempool test starting... %c", '\0');
+    debug(DEBUG_INFO, "Mempool test starting... %c", '\n');
 
     safe_alloc_free_test();
     track_block_test();

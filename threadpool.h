@@ -13,6 +13,8 @@
 // Maximum number of members in the task queue array
 #define MAX_QUEUE 256
 
+// Memory to allocate for thread retval
+#define THREAD_RETVAL 2048
 
 // Thread pool flags
 
@@ -38,11 +40,19 @@ typedef enum {
 } threadpool_error_t;
 
 typedef struct {
+    // Actual argument
+    void* arg;
+
+    // Location to store retval per worker function
+    void* block_to_store_retval;
+} composite_arg_t;
+
+typedef struct {
     // Worker function
-    void* (*function)(void *);
+    void* (*function)(composite_arg_t *);
 
     // Arguments to the worker function
-    void *argument;
+    composite_arg_t *argument;
 } threadpool_task_t;
 
 typedef struct {
