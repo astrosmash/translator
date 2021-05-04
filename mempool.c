@@ -66,6 +66,11 @@ bool track_block(void* ptr, size_t mode)
         }
 
         for (size_t i = pool->count; i > 0; --i) {
+#ifdef DEBUG
+            for (size_t j = pool->count; j > 0; --j) {
+                debug(DEBUG_TEST, "allocated_blocks#%zu %p", j, pool->allocated_blocks[j]);
+            }
+#endif
             debug(DEBUG_FULLDBG, "Looking for %p, found %p at pos %zu", ptr, pool->allocated_blocks[i], i);
             if (pool->allocated_blocks[i] == ptr) {
                 pool->allocated_blocks[i] = NULL;
