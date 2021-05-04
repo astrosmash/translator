@@ -1,4 +1,7 @@
 /build/
 /dist/
 /nbproject/
+/tests/test
+
+test.log
 translator

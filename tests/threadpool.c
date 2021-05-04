@@ -86,6 +86,8 @@ void threadpool_add_test(threadpool_t* pool)
     assert(strcmp(pool->queue[1].argument->block_to_store_retval, threadpool_task1_arg2) == 0);
     assert(strcmp(pool->queue[1].argument->block_to_store_retval, "fake"));
 
+    safe_free((void**) &(pool->queue[0].argument->block_to_store_retval));
+    safe_free((void**) &(pool->queue[1].argument->block_to_store_retval));
     safe_free((void**) &arg1);
     safe_free((void**) &arg2);
     debug(DEBUG_TEST, "add finished, pool->count %zu", pool->count);
