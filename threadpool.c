@@ -154,7 +154,8 @@ threadpool_t* threadpool_create(size_t thread_count, size_t queue_size, size_t f
     // Block SIGQUIT and SIGUSR1
     sigset_t signalset;
     sigemptyset(&signalset);
-    sigaddset(&signalset, SIGQUIT | SIGUSR1);
+    sigaddset(&signalset, SIGQUIT);
+    sigaddset(&signalset, SIGUSR1);
 
     // Set attributes of the threads (pool-wide)
     if ((res = pthread_sigmask(SIG_BLOCK, &signalset, NULL))) {
