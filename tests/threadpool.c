@@ -26,6 +26,8 @@ threadpool_t* threadpool_create_test(void) {
 }
 
 // threadpool_add()
+#include <sys/types.h>
+#include <sys/wait.h>
 void* threadpool_task_icmp(composite_arg_t* arg1)
 {
     void* arg = arg1->arg;
@@ -37,9 +39,26 @@ void* threadpool_task_icmp(composite_arg_t* arg1)
         strncpy(retval, arg, strlen(arg));
     }
 
-    char *newargv[] = { "/bin/ping", "-c 1", arg, NULL };
-    char *newenviron[] = { NULL };
-    execve("/bin/ping", newargv, newenviron);
+    int childstatus = EXIT_SUCCESS;
+    pid_t pid = fork();
+
+    if (pid == 0) { // Forked child
+        char *newargv[] = { "/bin/ping", "-c 1", arg, NULL };
+        char *newenviron[] = { NULL };
+        execve("/bin/ping", newargv, newenviron);
+    }
+
+    if (pid > 0) { // Parent
+        pid = wait(&childstatus);
+
+        debug(DEBUG_TEST, "child pid %d ", pid);
+        if (WIFEXITED(childstatus)) { debug(DEBUG_TEST, "exited with code %d", WEXITSTATUS(childstatus)); }
+        if (WIFSIGNALED(childstatus)) { debug(DEBUG_TEST, "killed with -%d", WTERMSIG(childstatus)); }
+    }
+
+    if (pid < 0) { // Forked child
+        debug(DEBUG_TEST, "in fork() %c", '\n');
+    }
 
     return NULL;
 }
