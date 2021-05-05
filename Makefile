@@ -9,6 +9,7 @@ THIS_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 PROJECT_SRC_DIR ?= $(THIS_DIR)
 PROJECT_TEST_DIR ?= $(THIS_DIR)/tests
 
+NPROC := $(shell nproc)
 CLANG_FLAGS_COMMON += -D__NR_CPUS__=$(NPROC) -O2
 CLANG_INCLUDES_COMMON += -I.
 
@@ -20,7 +21,6 @@ CLANG_FLAGS_PROJECT_DEBUG += -Wall -Wextra -Wshadow -Wpedantic
 CLANG_FLAGS_PROJECT += -L$(PROJECT_SRC_DIR) $(CLANG_FLAGS_COMMON) $(GTK_CFLAGS) -lcurl -ldb -lpthread
 CLANG_INCLUDES_PROJECT += $(CLANG_INCLUDES_COMMON) $(GTK_INCLUDE)
 
-NPROC := $(shell nproc)
 PROJECT_FILES := $(shell find $(PROJECT_SRC_DIR) -type f -name "*.c" -or -name "*.h")
 PROJECT_TEST_FILES := $(shell find $(PROJECT_TEST_DIR) -type f -name "*.c")
 
