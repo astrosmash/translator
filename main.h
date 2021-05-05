@@ -5,6 +5,8 @@
 #include <time.h>
 #include <unistd.h>
 
+#include <curl/curl.h>
+
 // Inclusive logging output
 // 1: (real) errors
 #define DEBUG_ERROR 1
@@ -27,7 +29,7 @@
 // Include debug output
 #define DEBUG 1
 #ifndef DEBUG_LEVEL
-#define DEBUG_LEVEL DEBUG_FULLDBG
+#define DEBUG_LEVEL DEBUG_TEST
 #endif
 
 typedef enum {
@@ -37,3 +39,4 @@ typedef enum {
 
 #include "mempool.h"
 #include "threadpool.h"
+#include "gui.h"
