@@ -9,7 +9,7 @@ THIS_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 PROJECT_SRC_DIR ?= $(THIS_DIR)
 PROJECT_TEST_DIR ?= $(THIS_DIR)/tests
 
-NPROC := $(shell /usr/local/bin/nproc)
+NPROC := $(shell /usr/local/bin/nproc || getconf _NPROCESSORS_ONLN)
 CLANG_FLAGS_COMMON += -D__NR_CPUS__=$(NPROC) -O2
 CLANG_INCLUDES_COMMON += -I.
 
