@@ -5,7 +5,8 @@
 // threadpool_create()
 threadpool_t* threadpool_create_test(void) {
 
-    size_t thread_count = 1;
+    // size_t thread_count = 1;
+    size_t thread_count = MAX_THREADS-1;
     size_t queue_size = MAX_QUEUE/2;
     size_t flags = 0;
 
@@ -25,12 +26,72 @@ threadpool_t* threadpool_create_test(void) {
 }
 
 // threadpool_add()
+void* threadpool_task_icmp(composite_arg_t* arg1)
+{
+    void* arg = arg1->arg;
+    void* retval = arg1->block_to_store_retval;
+
+    debug(DEBUG_TEST, "arg %s, block to store retval %p", arg, retval);
+
+    if (retval) {
+        strncpy(retval, arg, strlen(arg));
+    }
+
+    char *newargv[] = { "/bin/ping", "-c 1", arg, NULL };
+    char *newenviron[] = { NULL };
+    execve("/bin/ping", newargv, newenviron);
+
+    return NULL;
+}
+void threadpool_add_test_icmp(threadpool_t* pool)
+{
+    size_t flags = 0;
+    size_t res = EXIT_SUCCESS;
+    struct timespec wait_for_ret = { .tv_sec = 1 };
+
+    composite_arg_t* arg1 = safe_alloc(sizeof(composite_arg_t));
+
+    char* threadpool_task1_arg1 = "8.8.8.8";
+    debug(DEBUG_TEST, "will submit arg1 %s", threadpool_task1_arg1);
+
+    arg1->arg = safe_alloc(strlen(threadpool_task1_arg1) + 1);
+
+    strncpy(arg1->arg, threadpool_task1_arg1, strlen(threadpool_task1_arg1));
+
+    arg1->block_to_store_retval = safe_alloc(THREAD_RETVAL);
+
+    threadpool_task_t task1 = {&threadpool_task_icmp, arg1};
+    res = threadpool_add(pool, &task1, flags);
+    assert(res == EXIT_SUCCESS);
+    assert(pool->count == 1);
+
+    assert(pool->queue[0].function == &threadpool_task_icmp);
+    debug(DEBUG_TEST, "will compare %s (%zu) with %s (%zu)",
+        pool->queue[0].argument->arg,
+        strlen(pool->queue[0].argument->arg),
+        threadpool_task1_arg1,
+        strlen(threadpool_task1_arg1));
+
+    assert(strcmp(pool->queue[0].argument->arg, threadpool_task1_arg1) == 0);
+    assert(strcmp(pool->queue[0].argument->arg, "fake"));
+
+    nanosleep(&wait_for_ret, NULL);
+    assert(strcmp(pool->queue[0].argument->block_to_store_retval, threadpool_task1_arg1) == 0);
+    assert(strcmp(pool->queue[0].argument->block_to_store_retval, "fake"));
+
+    safe_free((void**) &(pool->queue[0].argument->block_to_store_retval));
+    safe_free((void**) &arg1->arg);
+    safe_free((void**) &arg1);
+
+    debug(DEBUG_TEST, "add finished, pool->count %zu", pool->count);
+}
+
 void* threadpool_task1(composite_arg_t* arg1)
 {
     void* arg = arg1->arg;
     void* retval = arg1->block_to_store_retval;
 
-    debug(DEBUG_TEST, "task1 %s, block to store retval %p", arg, retval);
+    debug(DEBUG_TEST, "arg %s, block to store retval %p", arg, retval);
 
     if (retval) {
         strncpy(retval, arg, strlen(arg));
@@ -174,6 +235,7 @@ int main(int argc, char** argv)
     threadpool_t* testpool_free = threadpool_create_test();
     threadpool_free_test(testpool_free);
 
+/*
     debug(DEBUG_TEST, "---------- test #2... %c", '\n');
     threadpool_t* testpool_immediate = threadpool_create_test();
     threadpool_add_test(testpool_immediate);
@@ -184,12 +246,21 @@ int main(int argc, char** argv)
     threadpool_t* testpool_graceful = threadpool_create_test();
     threadpool_add_test(testpool_graceful);
     threadpool_destroy_test_graceful(testpool_graceful);
+*/
 
+/*
     debug(DEBUG_TEST, "---------- test #4... %c", '\n');
     threadpool_t* testpool_thread = threadpool_create_test();
     threadpool_add_test(testpool_thread);
     threadpool_thread_test(testpool_thread);
     threadpool_destroy_test_graceful(testpool_thread);
+*/
+
+    debug(DEBUG_TEST, "---------- test #5/icmp... %c", '\n');
+    threadpool_t* testpool_thread = threadpool_create_test();
+    threadpool_add_test_icmp(testpool_thread);
+    threadpool_thread_test(testpool_thread);
+    threadpool_destroy_test_immediate(testpool_thread);
 
     // Cleanup
     debug(DEBUG_TEST, "Exiting, track_block should not indicate any leftovers now... %c", '\0');
