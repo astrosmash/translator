@@ -5,7 +5,7 @@ static void* threadpool_thread(void *threadpool)
 {
     assert(threadpool);
     threadpool_t* pool = (threadpool_t *) threadpool;
-    threadpool_task_t task = {NULL};
+    threadpool_task_t task = { .argument = NULL, .function = NULL };
     void* func_res = NULL;
     debug(DEBUG_TEST, "started threads: %zu", pool->started);
 
@@ -130,12 +130,15 @@ threadpool_t* threadpool_create(size_t thread_count, size_t queue_size, size_t f
 
     // Initialize the pool
     pool->queue_size = queue_size;
+
     pool->threads = (pthread_t *) safe_alloc(sizeof (pthread_t) * thread_count);
-    debug(DEBUG_TEST, "Allocated pool->threads on %p\n", pool->threads);
+    debug(DEBUG_TEST, "Allocated pool->threads on %p\n", (void *) pool->threads);
+
     pool->threads_attrs = (pthread_attr_t *) safe_alloc(sizeof (pthread_attr_t) * thread_count);
-    debug(DEBUG_TEST, "Allocated pool->threads_attrs on %p\n", pool->threads_attrs);
+    debug(DEBUG_TEST, "Allocated pool->threads_attrs on %p\n", (void *) pool->threads_attrs);
+
     pool->queue = (threadpool_task_t *) safe_alloc(sizeof (threadpool_task_t) * thread_count);
-    debug(DEBUG_TEST, "Allocated pool->queue on %p\n", pool->queue);
+    debug(DEBUG_TEST, "Allocated pool->queue on %p\n", (void *) pool->queue);
 
     // Initialize mutex and conditional variables
     ssize_t res = 0;
@@ -242,7 +245,7 @@ ssize_t threadpool_add(threadpool_t* pool, threadpool_task_t* task, size_t flags
         pool->queue[pool->tail].argument = task->argument;
 
         debug(DEBUG_TEST, "#%zu func %p arg %p retval block %p\n", pool->tail,
-                pool->queue[pool->tail].function,
+                (void *) pool->queue[pool->tail].function,
                 pool->queue[pool->tail].argument->arg,
                 pool->queue[pool->tail].argument->block_to_store_retval);
 

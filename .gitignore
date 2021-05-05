@@ -1,6 +1,7 @@
-./build/
-./dist/
-./nbproject/
+./build/*
+./dist/*
+./nbproject/*
+./ccls-cache/*
 ./tests/test
 
 .dep.inc
