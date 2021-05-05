@@ -100,8 +100,13 @@ bool track_block(void* ptr, size_t mode)
             debug(DEBUG_FULLDBG, "Looking for %p, found %p at pos %zu", ptr, pool->allocated_blocks[i], i);
             if (pool->allocated_blocks[i] == ptr) {
                 pool->allocated_blocks[i] = NULL;
-                debug(DEBUG_VERBOSE, "Removed %p at pos %zu, now allocated: %zu", ptr, i, pool->count);
+
+		// We decrement a number of allocated blocks, but if our NULLed block was not on top, top block will get lost.
+		// Copy previous block to our new NULLed position so it could be tracked later
+		if (pool->allocated_blocks[i + 1]) { pool->allocated_blocks[i] = pool->allocated_blocks[i + 1]; }
+
                 --pool->count;
+                debug(DEBUG_VERBOSE, "Removed %p at pos %zu, now allocated: %zu", ptr, i, pool->count);
                 return true;
             }
         }
