@@ -299,7 +299,7 @@ int main(int argc, char** argv)
     debug(DEBUG_TEST, "---------- test #5/icmp... %c", '\n');
     threadpool_t* testpool_thread_icmp = threadpool_create_test();
     threadpool_add_test_icmp(testpool_thread_icmp);
-    threadpool_thread_test(testpool_thread_icmp);
+    // threadpool_thread_test(testpool_thread_icmp);
     threadpool_destroy_test_immediate(testpool_thread_icmp);
 
     debug(DEBUG_TEST, "Cleaning up, track_block should not indicate any leftovers now... %c", '\0');
@@ -311,7 +311,7 @@ int main(int argc, char** argv)
     debug(DEBUG_TEST, "---------- test #6... %c", '\n');
     threadpool_t* testpool_thread = threadpool_create_test();
     threadpool_add_test(testpool_thread);
-    threadpool_thread_test(testpool_thread);
+    // threadpool_thread_test(testpool_thread);
     threadpool_destroy_test_graceful(testpool_thread);
 
     // Cleanup
