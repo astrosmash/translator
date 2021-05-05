@@ -35,7 +35,7 @@ static void* threadpool_thread(void *threadpool)
             break;
         }
 
-        debug(DEBUG_TEST, "PRE pool->head: %zu tasks->count: %zu", pool->head, pool->count);
+        debug(DEBUG_TEST, "PRE pool->head: %zu pool->count: %zu", pool->head, pool->count);
         // Get the first task from the task queue.
         task.function = pool->queue[pool->head].function;
         task.argument = pool->queue[pool->head].argument;
