@@ -58,7 +58,7 @@ static void* threadpool_thread(void *threadpool)
     } while (true);
 
     // Update the number of running threads
-    --pool->started;
+    if (pool->started) { --pool->started; }
     debug(DEBUG_TEST, "started threads: %zu", pool->started);
 
     // Unlock the mutex - just in case it's locked
@@ -235,9 +235,6 @@ ssize_t threadpool_add(threadpool_t* pool, threadpool_task_t* task, size_t flags
             break;
         }
         debug(DEBUG_TEST, "pool->shutdown: %u\n", pool->shutdown);
-
-        // Initialize memory for retval ---------------------------------------- TODO: free
-        task->argument->block_to_store_retval = safe_alloc(THREAD_RETVAL);
 
         // Add task and its arguments to the tail of the queue.
         pool->queue[pool->tail].function = task->function;

@@ -49,12 +49,18 @@ void threadpool_add_test(threadpool_t* pool)
     composite_arg_t* arg1 = safe_alloc(sizeof(composite_arg_t));
     composite_arg_t* arg2 = safe_alloc(sizeof(composite_arg_t));
 
-    char* threadpool_task1_arg1 = "success 1\t";
-    char* threadpool_task1_arg2 = "success 2\t";
-    arg1->arg = threadpool_task1_arg1;
-    arg2->arg = threadpool_task1_arg2;
+    char* threadpool_task1_arg1 = "success 1 <<<>>>\t";
+    char* threadpool_task1_arg2 = "success 2 <<<>>>\t";
+    debug(DEBUG_TEST, "will submit arg1 %s, arg2 %s", threadpool_task1_arg1, threadpool_task1_arg2);
 
-    debug(DEBUG_TEST, "arg1 %p, arg2 %p", threadpool_task1_arg1, threadpool_task1_arg2);
+    arg1->arg = safe_alloc(strlen(threadpool_task1_arg1) + 1);
+    arg2->arg = safe_alloc(strlen(threadpool_task1_arg2) + 1);
+
+    strncpy(arg1->arg, threadpool_task1_arg1, strlen(threadpool_task1_arg1));
+    strncpy(arg2->arg, threadpool_task1_arg2, strlen(threadpool_task1_arg2));
+
+    arg1->block_to_store_retval = safe_alloc(THREAD_RETVAL);
+    arg2->block_to_store_retval = safe_alloc(THREAD_RETVAL);
 
     assert(strcmp(threadpool_task1(arg1), "threadpool_task1 ok"));
     assert(strcmp(threadpool_task1(arg1), "threadpool_task1 ok\n") == 0);
@@ -66,6 +72,12 @@ void threadpool_add_test(threadpool_t* pool)
     assert(pool->count == 1);
 
     assert(pool->queue[0].function == &threadpool_task1);
+    debug(DEBUG_TEST, "will compare %s (%zu) with %s (%zu)",
+        pool->queue[0].argument->arg,
+        strlen(pool->queue[0].argument->arg),
+        threadpool_task1_arg1,
+        strlen(threadpool_task1_arg1));
+
     assert(strcmp(pool->queue[0].argument->arg, threadpool_task1_arg1) == 0);
     assert(strcmp(pool->queue[0].argument->arg, "fake"));
 
@@ -88,6 +100,8 @@ void threadpool_add_test(threadpool_t* pool)
 
     safe_free((void**) &(pool->queue[0].argument->block_to_store_retval));
     safe_free((void**) &(pool->queue[1].argument->block_to_store_retval));
+    safe_free((void**) &arg1->arg);
+    safe_free((void**) &arg2->arg);
     safe_free((void**) &arg1);
     safe_free((void**) &arg2);
     debug(DEBUG_TEST, "add finished, pool->count %zu", pool->count);
@@ -157,17 +171,21 @@ int main(int argc, char** argv)
 {
     debug(DEBUG_INFO, "Threadpool test starting... %c", '\n');
 
+    debug(DEBUG_TEST, "---------- test #1... %c", '\n');
+    threadpool_t* testpool_free = threadpool_create_test();
+    threadpool_free_test(testpool_free);
+
+    debug(DEBUG_TEST, "---------- test #2... %c", '\n');
     threadpool_t* testpool_immediate = threadpool_create_test();
     threadpool_add_test(testpool_immediate);
     threadpool_destroy_test_immediate(testpool_immediate);
 
+    debug(DEBUG_TEST, "---------- test #3... %c", '\n');
     threadpool_t* testpool_graceful = threadpool_create_test();
     threadpool_add_test(testpool_graceful);
     threadpool_destroy_test_graceful(testpool_graceful);
 
-    threadpool_t* testpool_free = threadpool_create_test();
-    threadpool_free_test(testpool_free);
-
+    debug(DEBUG_TEST, "---------- test #4... %c", '\n');
     threadpool_t* testpool_thread = threadpool_create_test();
     threadpool_add_test(testpool_thread);
     threadpool_thread_test(testpool_thread);

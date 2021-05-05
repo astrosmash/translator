@@ -77,8 +77,22 @@ bool track_block(void* ptr, size_t mode)
             if (!(pool->allocated_blocks[pool->count])) {
                 pool->allocated_blocks[pool->count] = ptr;
             } else {
-                debug(DEBUG_ERROR, "Failed to insert %p at pos %zu - found %p there, sorting did not help!", ptr, pool->count, pool->allocated_blocks[pool->count]);
-                return false;
+                debug(DEBUG_ERROR, "Failed to insert %p at pos %zu - found %p there, sorting did not help! "
+                                   "Will increment allocated counter so we have null on the top",
+                                     ptr,
+                                     pool->count,
+                                     pool->allocated_blocks[pool->count]);
+
+                // Try to increment allocated counter as last resort...
+                ++pool->count;
+
+                if (!(pool->allocated_blocks[pool->count])) {
+                    pool->allocated_blocks[pool->count] = ptr;
+                } else {
+                    // Techincally should never happen
+                    debug(DEBUG_ERROR, "Incrementing did not help - have %p there...", pool->allocated_blocks[pool->count]);
+                    return false;
+                }
             }
         }
         debug(DEBUG_VERBOSE, "Inserted %p at pos %zu", ptr, pool->count);
