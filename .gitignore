@@ -1,7 +1,8 @@
-/build/
-/dist/
-/nbproject/
-/tests/test
+./build/
+./dist/
+./nbproject/
+./tests/test
 
+.dep.inc
 test.log
 translator
