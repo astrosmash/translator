@@ -1,5 +1,5 @@
 language: c
 compiler: clang
-install: apt-get update && apt-get install libdb5.3-dev
+install: sudo apt-get update && sudo apt-get install libdb5.3-dev
 
 script: make clean && make build && make test
