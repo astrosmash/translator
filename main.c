@@ -12,7 +12,7 @@ int main(int argc, char** argv)
             break;
         default: /* '?' */
             debug(DEBUG_ERROR, "Usage: %s [-g]\n", *argv);
-            return exit(EXIT_FAILURE);
+            return (EXIT_FAILURE);
         }
     }
 
