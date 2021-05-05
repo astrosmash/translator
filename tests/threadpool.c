@@ -146,8 +146,6 @@ void threadpool_free_test(threadpool_t* pool)
 }
 
 // threadpool_thread()
-#include <time.h>
-
 void threadpool_thread_test(threadpool_t* pool)
 {
     size_t flags = 0;
@@ -170,6 +168,7 @@ void threadpool_thread_test(threadpool_t* pool)
 int main(int argc, char** argv)
 {
     debug(DEBUG_INFO, "Threadpool test starting... %c", '\n');
+    struct timespec wait_for_ret = { .tv_sec = 1 };
 
     debug(DEBUG_TEST, "---------- test #1... %c", '\n');
     threadpool_t* testpool_free = threadpool_create_test();
@@ -178,6 +177,7 @@ int main(int argc, char** argv)
     debug(DEBUG_TEST, "---------- test #2... %c", '\n');
     threadpool_t* testpool_immediate = threadpool_create_test();
     threadpool_add_test(testpool_immediate);
+    nanosleep(&wait_for_ret, NULL);
     threadpool_destroy_test_immediate(testpool_immediate);
 
     debug(DEBUG_TEST, "---------- test #3... %c", '\n');
