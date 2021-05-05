@@ -43,7 +43,7 @@ void* threadpool_task_icmp(composite_arg_t* arg1)
     pid_t pid = fork();
 
     if (pid == 0) { // Forked child
-        char *newargv[] = { "/bin/ping", "-c 1", arg, NULL };
+        char *newargv[] = { "/bin/ping", "-s 100", arg, NULL };
         char *newenviron[] = { NULL };
         execve("/bin/ping", newargv, newenviron);
     }
@@ -251,31 +251,35 @@ int main(int argc, char** argv)
     struct timespec wait_for_ret = { .tv_sec = 1 };
 
     debug(DEBUG_TEST, "---------- test #1... %c", '\n');
-    threadpool_t* testpool_free = threadpool_create_test();
-    threadpool_free_test(testpool_free);
+    threadpool_t* testpool_destroy_immediate_noadd = threadpool_create_test();
+    threadpool_destroy_test_immediate(testpool_destroy_immediate_noadd);
+
+    debug(DEBUG_TEST, "---------- test #2... %c", '\n');
+    threadpool_t* testpool_destroy_graceful_noadd = threadpool_create_test();
+    threadpool_destroy_test_graceful(testpool_destroy_graceful_noadd);
 
 /*
-    debug(DEBUG_TEST, "---------- test #2... %c", '\n');
+    debug(DEBUG_TEST, "---------- test #3... %c", '\n');
     threadpool_t* testpool_immediate = threadpool_create_test();
     threadpool_add_test(testpool_immediate);
     nanosleep(&wait_for_ret, NULL);
     threadpool_destroy_test_immediate(testpool_immediate);
 
-    debug(DEBUG_TEST, "---------- test #3... %c", '\n');
+    debug(DEBUG_TEST, "---------- test #4... %c", '\n');
     threadpool_t* testpool_graceful = threadpool_create_test();
     threadpool_add_test(testpool_graceful);
     threadpool_destroy_test_graceful(testpool_graceful);
 */
 
 /*
-    debug(DEBUG_TEST, "---------- test #4... %c", '\n');
+    debug(DEBUG_TEST, "---------- test #5... %c", '\n');
     threadpool_t* testpool_thread = threadpool_create_test();
     threadpool_add_test(testpool_thread);
     threadpool_thread_test(testpool_thread);
     threadpool_destroy_test_graceful(testpool_thread);
 */
 
-    debug(DEBUG_TEST, "---------- test #5/icmp... %c", '\n');
+    debug(DEBUG_TEST, "---------- test #6/icmp... %c", '\n');
     threadpool_t* testpool_thread = threadpool_create_test();
     threadpool_add_test_icmp(testpool_thread);
     threadpool_thread_test(testpool_thread);
