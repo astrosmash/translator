@@ -9,13 +9,13 @@ THIS_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 PROJECT_SRC_DIR ?= $(THIS_DIR)
 PROJECT_TEST_DIR ?= $(THIS_DIR)/tests
 
-NPROC := $(shell /usr/local/bin/nproc || getconf _NPROCESSORS_ONLN)
+NPROC := $(shell nproc || getconf _NPROCESSORS_ONLN)
 CLANG_FLAGS_COMMON += -D__NR_CPUS__=$(NPROC) -O2
 CLANG_INCLUDES_COMMON += -I.
 
 GTK := gtk+-3.0
-GTK_CFLAGS := $(shell /usr/local/bin/pkg-config --cflags $(GTK))
-GTK_INCLUDE := $(shell /usr/local/bin/pkg-config --libs $(GTK))
+GTK_CFLAGS := $(shell pkg-config --cflags $(GTK))
+GTK_INCLUDE := $(shell pkg-config --libs $(GTK))
 
 CLANG_FLAGS_PROJECT_DEBUG += -Wall -Wextra -Wshadow -Wpedantic
 CLANG_FLAGS_PROJECT += -L$(PROJECT_SRC_DIR) $(CLANG_FLAGS_COMMON) $(GTK_CFLAGS) -lcurl -ldb -lpthread
