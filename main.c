@@ -20,13 +20,7 @@ int main(int argc, char** argv)
         curl_global_init(CURL_GLOBAL_DEFAULT);
         gtk_init(&argc, &argv);
 
-        // Launch the thread pool
-        size_t thread_count = MAX_THREADS - 1;
-        size_t queue_size = MAX_QUEUE / 2;
-        size_t flags = 0;
-        threadpool_t* pool = threadpool_create(thread_count, queue_size, flags);
-
-        if (draw_gui(pool)) {
+        if (draw_gui()) {
             debug(DEBUG_ERROR, "Cannot launch GUI %c", '\n');
         }
 
