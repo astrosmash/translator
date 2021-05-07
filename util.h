@@ -9,6 +9,11 @@ typedef struct {
     char gid[MAX_ENTRY_LENGTH];
 } spreadsheet_t;
 
+struct curl_string {
+    char* ptr;
+    size_t len;
+};
+
 enum {
     NEED_TO_CHECK = 1 << 0,
     NEED_TO_CREATE = 1 << 1,
@@ -18,8 +23,8 @@ enum {
 threadpool_t* get_threadpool(bool);
 GtkWidget* get_main_window(bool);
 spreadsheet_t* get_spreadsheet(bool);
-const char* get_homedir(void);
 const char* db_file(size_t);
+bool populate_database(const char*);
 
 // Definition
 #include "util.c"

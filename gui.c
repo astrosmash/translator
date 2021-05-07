@@ -183,11 +183,11 @@ void fetch_entries(GtkEntry* entry, gpointer data)
             return;
         }
 
-//        if (!populate_database(spreadsheet)) {
-//            safe_free((void**) &entries);
-//            safe_free((void**) &spreadsheet);
-//            return;
-//        }
+        if (!populate_database(database_file)) {
+            return;
+        }
+        safe_free((void**) &entries);
+        safe_free((void**) &spreadsheet);
 
         draw_main_screen(database_file);
         gtk_widget_show_all(main_window);
