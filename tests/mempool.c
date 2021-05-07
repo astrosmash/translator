@@ -3,11 +3,8 @@
 #include "../main.h"
 
 // qsort() + track_block_sort() as comparator
-
 void track_block_sort_test(void)
 {
-    size_t blocks_len = 16;
-
     void* unordered_blocks[16] = {
         NULL,
         (void*) 0x7fecc84128b2,
@@ -45,6 +42,8 @@ void track_block_sort_test(void)
         NULL
     };
 
+    size_t blocks_len = 16;
+
     print_table_content((void **) &unordered_blocks, blocks_len - 1);
     qsort(unordered_blocks, blocks_len, sizeof (void *), track_block_sort);
     print_table_content((void **) &unordered_blocks, blocks_len - 1);
@@ -55,7 +54,8 @@ void track_block_sort_test(void)
 }
 
 // safe_alloc()
-void safe_alloc_free_test(void) {
+void safe_alloc_free_test(void)
+{
     uint16_t* block_16 = safe_alloc(16);
     assert(block_16);
     assert(*block_16 == 0);
@@ -92,47 +92,42 @@ void track_block_test(void)
 
     assert(track_block(test_block, MODE_ALLOCATION));
 
-
     for (size_t i = 0; i < MAX_ALLOCATIONS - 1; ++i) {
         assert(track_block(test_block, MODE_ALLOCATION));
     }
-
     for (size_t i = 0; i < MAX_ALLOCATIONS; ++i) {
         assert(track_block(test_block, MODE_REMOVAL));
     }
 
     assert(!track_block(test_block, MODE_REMOVAL));
 
-
     // Reverse
     for (size_t i = 0; i < MAX_ALLOCATIONS - 1; ++i) {
         assert(track_block(test_block, MODE_ALLOCATION));
     }
-
     for (size_t i = MAX_ALLOCATIONS; i > 1; --i) {
         assert(track_block(test_block, MODE_REMOVAL));
     }
 
     assert(!track_block(test_block, MODE_REMOVAL));
 
-    // Should not indicate any leftovers
+    debug_test("Cleaning up, track_block should not indicate any leftovers now... %c", '\0');
     assert(track_block(NULL, MODE_GLOBAL_CLEANUP_ON_SHUTDOWN));
 }
 
-
 int main(int argc, char** argv)
 {
-    debug(DEBUG_INFO, "Mempool test starting... %c", '\n');
+    debug_info("Mempool test starting... %c", '\n');
 
     track_block_sort_test();
     safe_alloc_free_test();
     track_block_test();
 
     // Cleanup
-    debug(DEBUG_TEST, "Exiting, track_block should not indicate any leftovers now... %c", '\n');
+    debug_test("Exiting, track_block should not indicate any leftovers now... %c", '\n');
     if (track_block(NULL, MODE_GLOBAL_CLEANUP_ON_SHUTDOWN)) {
         return (EXIT_SUCCESS);
     }
-    debug(DEBUG_ERROR, "track_block failed! %c", '\0');
+    debug_error("track_block failed! %c", '\0');
     return (EXIT_FAILURE);
 }

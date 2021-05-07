@@ -17,21 +17,18 @@
 #define THREAD_RETVAL 2048
 
 // Thread pool flags
-
 typedef enum {
     threadpool_immediate = 1,
     threadpool_graceful
 } threadpool_destroy_flags_t;
 
 // Threadpool shutdown modes
-
 typedef enum {
     threadpool_shutdown_immediate = 1,
     threadpool_shutdown_graceful
 } threadpool_shutdown_t;
 
 // Thread pool error codes
-
 typedef enum {
     threadpool_queue_full = -1,
     threadpool_shutdown = -2,

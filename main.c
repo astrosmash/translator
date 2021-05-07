@@ -11,7 +11,7 @@ int main(int argc, char** argv)
             gui = 1;
             break;
         default: /* '?' */
-            debug(DEBUG_ERROR, "Usage: %s [-g]\n", *argv);
+            debug_error("Usage: %s [-g]\n", *argv);
             return (EXIT_FAILURE);
         }
     }
@@ -21,7 +21,7 @@ int main(int argc, char** argv)
         gtk_init(&argc, &argv);
 
         if (draw_gui()) {
-            debug(DEBUG_ERROR, "Cannot launch GUI %c", '\n');
+            debug_error("Cannot launch GUI %c", '\n');
         }
 
         gtk_main();

@@ -4,7 +4,7 @@ size_t draw_gui(void)
 
     bool need_to_allocate = true;
     threadpool_t* pool = get_threadpool(need_to_allocate);
-    debug(DEBUG_INFO, "will use threadpool at %p", (void*) pool);
+    debug_info("will use threadpool at %p", (void*) pool);
 
     // Main window
     GtkWidget* main_window = get_main_window(need_to_allocate);
@@ -157,27 +157,27 @@ void fetch_entries(GtkEntry* entry, gpointer data)
 
             if (text_len) {
                 if (strcmp(type, "spreadsheet_key_entry") == 0) {
-                    debug(DEBUG_INFO, "Read Spreadsheet Key %s\n", text);
+                    debug_info("Read Spreadsheet Key %s\n", text);
                     if (strlen(spreadsheet->key)) {
                         memset(spreadsheet->key, 0, MAX_ENTRY_LENGTH);
                     }
                     strncpy(spreadsheet->key, text, text_len);
 
                 } else if (strcmp(type, "spreadsheet_gid_entry") == 0) {
-                    debug(DEBUG_INFO, "Read Spreadsheet GID %s\n", text);
+                    debug_info("Read Spreadsheet GID %s\n", text);
                     if (strlen(spreadsheet->gid)) {
                         memset(spreadsheet->gid, 0, MAX_ENTRY_LENGTH);
                     }
                     strncpy(spreadsheet->gid, text, text_len);
                 } else {
-                    debug(DEBUG_ERROR, "text_type unknown %s, doing nothing\n", type);
+                    debug_error("text_type unknown %s, doing nothing\n", type);
                 }
             }
         }
     }
 
     if (strlen(spreadsheet->key) && strlen(spreadsheet->gid)) {
-        debug(DEBUG_FULLDBG, "Spreadsheet Key length %zu, Spreadsheet GID length %zu\n", strlen(spreadsheet->key), strlen(spreadsheet->gid));
+        debug_fulldbg("Spreadsheet Key length %zu, Spreadsheet GID length %zu\n", strlen(spreadsheet->key), strlen(spreadsheet->gid));
 
         size_t mode = NEED_TO_CREATE;
         const char* database_file = NULL;
@@ -209,13 +209,13 @@ void exit_gui(void)
     bool need_to_allocate = false;
     threadpool_t* pool = get_threadpool(need_to_allocate);
 
-    debug(DEBUG_INFO, "exiting, will stop threadpool at %p", (void*) pool);
+    debug_info("exiting, will stop threadpool at %p", (void*) pool);
 
     // Shutdown the thread pool
     size_t flags = threadpool_graceful;
     ssize_t res = threadpool_destroy(pool, flags);
     if (res != EXIT_SUCCESS) {
-        debug(DEBUG_ERROR, "threadpool_destroy failed: %zi", res);
+        debug_error("threadpool_destroy failed: %zi", res);
     }
 
     gtk_main_quit();
@@ -234,7 +234,7 @@ threadpool_t* get_threadpool(bool need_to_allocate)
         threadpool = threadpool_create(thread_count, queue_size, flags);
     }
 
-    debug(DEBUG_FULLDBG, "Returning %p, allocated = %u\n", (void*) threadpool, need_to_allocate);
+    debug_fulldbg("Returning %p, allocated = %u\n", (void*) threadpool, need_to_allocate);
     return threadpool;
 }
 
@@ -247,7 +247,7 @@ GtkWidget* get_main_window(bool need_to_allocate)
         assert(main_window);
     }
 
-    debug(DEBUG_FULLDBG, "Returning %p, allocated = %u\n", (void*) main_window, need_to_allocate);
+    debug_fulldbg("Returning %p, allocated = %u\n", (void*) main_window, need_to_allocate);
     return main_window;
 }
 
@@ -259,7 +259,7 @@ spreadsheet_t* get_spreadsheet(bool need_to_allocate)
         spreadsheet = safe_alloc(sizeof (spreadsheet_t));
     }
 
-    debug(DEBUG_FULLDBG, "Returning %p, allocated = %u\n", (void*) spreadsheet, need_to_allocate);
+    debug_fulldbg("Returning %p, allocated = %u\n", (void*) spreadsheet, need_to_allocate);
     return spreadsheet;
 }
 
@@ -272,7 +272,7 @@ const char* get_homedir(void)
     }
 
     assert(homedir);
-    debug(DEBUG_FULLDBG, "Determined ${HOME} to be %s\n", homedir);
+    debug_fulldbg("Determined ${HOME} to be %s\n", homedir);
 
     return homedir;
 }
@@ -288,20 +288,20 @@ const char* db_file(size_t mode)
 
     strncpy(fullpath, homedir, strlen(homedir));
     strncat(fullpath, app_subdir, strlen(app_subdir));
-    debug(DEBUG_FULLDBG, "Determined app directory to be %s\n", fullpath);
+    debug_fulldbg("Determined app directory to be %s\n", fullpath);
 
     size_t res = 0;
     struct stat stat_buf = {0};
     if ((res = stat(fullpath, &stat_buf))) {
-        debug(DEBUG_WARN, "Cannot access app directory %s (%s)\n", fullpath, strerror(errno));
+        debug_warn("Cannot access app directory %s (%s)\n", fullpath, strerror(errno));
 
         if (mode & NEED_TO_CREATE) {
             if ((stat_buf.st_mode & S_IFMT) != S_IFDIR) {
-                debug(DEBUG_WARN, "%s is not a directory, will try to create...\n", fullpath);
+                debug_warn("%s is not a directory, will try to create...\n", fullpath);
             }
 
             if ((res = mkdir(fullpath, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH))) {
-                debug(DEBUG_ERROR, "Cannot create app directory %s (%s)\n", fullpath, strerror(errno));
+                debug_error("Cannot create app directory %s (%s)\n", fullpath, strerror(errno));
                 safe_free((void**) &fullpath);
                 return NULL;
             }
@@ -313,24 +313,24 @@ const char* db_file(size_t mode)
     }
 
     strncat(fullpath, db_file, strlen(db_file));
-    debug(DEBUG_FULLDBG, "Determined database file to be %s\n", db_file);
+    debug_fulldbg("Determined database file to be %s\n", db_file);
 
     if ((res = stat(fullpath, &stat_buf))) {
-        debug(DEBUG_WARN, "Cannot access database file %s (%s)\n", fullpath, strerror(errno));
+        debug_warn("Cannot access database file %s (%s)\n", fullpath, strerror(errno));
 
         if (mode & NEED_TO_CREATE) {
             if ((stat_buf.st_mode & S_IFMT) != S_IFREG) {
-                debug(DEBUG_WARN, "%s is not a file, will try to create...\n", fullpath);
+                debug_warn("%s is not a file, will try to create...\n", fullpath);
             }
 
             if ((res = open(fullpath, O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR)) == -1) {
-                debug(DEBUG_ERROR, "Cannot create database file %s (%s)\n", fullpath, strerror(errno));
+                debug_error("Cannot create database file %s (%s)\n", fullpath, strerror(errno));
                 safe_free((void**) &fullpath);
                 return NULL;
             }
         } else {
             // Cannot access a file and need_to_create = false
-            debug(DEBUG_ERROR, "Cannot access a file and need_to_create = false %s\n", fullpath);
+            debug_error("Cannot access a file and need_to_create = false %s\n", fullpath);
             safe_free((void**) &fullpath);
             return NULL;
         }
@@ -338,7 +338,7 @@ const char* db_file(size_t mode)
 
     if (mode & NEED_TO_DELETE) {
         if (unlink(fullpath)) {
-            debug(DEBUG_ERROR, "Was not able to remove %s (%s)\n", fullpath, strerror(errno));
+            debug_error("Was not able to remove %s (%s)\n", fullpath, strerror(errno));
         }
     }
 

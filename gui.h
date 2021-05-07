@@ -5,12 +5,6 @@
 
 #include <gtk/gtk.h>
 
-enum {
-    NEED_TO_CHECK = 1 << 0,
-    NEED_TO_CREATE = 1 << 1,
-    NEED_TO_DELETE = 1 << 2
-} db_file_modes;
-
 #define NUMBER_OF_FORMS 2
 struct GtkEntries {
     GtkWidget* entry[NUMBER_OF_FORMS];
@@ -21,6 +15,12 @@ typedef struct {
     char key[MAX_ENTRY_LENGTH];
     char gid[MAX_ENTRY_LENGTH];
 } spreadsheet_t;
+
+enum {
+    NEED_TO_CHECK = 1 << 0,
+    NEED_TO_CREATE = 1 << 1,
+    NEED_TO_DELETE = 1 << 2
+} db_file_modes;
 
 // External functions
 size_t draw_gui(void);
