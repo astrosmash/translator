@@ -131,6 +131,121 @@ static bool submit_curl_task(const char* url, const char* cookie, struct curl_st
     return true;
 }
 
+static bool populate_translation(char* what, translation_t* translation)
+{
+    assert(what);
+    assert(translation);
+
+    struct {
+        char* lang_code;
+        char* lang_name;
+    } lang_mapping[] = {
+        { "ua", "украинский" },
+        { "ru", "русский" },
+        { "en", "английский" }
+    };
+
+    char* strtok_saveptr = NULL;
+    char* tokenized = strtok_r(what, ",", &strtok_saveptr);
+
+    size_t processed_words = 0; // 4 in a row.
+    while (tokenized != NULL) {
+        size_t tok_len = strlen(tokenized);
+        debug_info("Parsing tokenized: %s (len %zu) processed_words %zu\n", tokenized, tok_len, processed_words);
+
+        switch (processed_words) {
+        case 0:
+            for (size_t i = 0; i < sizeof(lang_mapping) / sizeof(*lang_mapping); ++i) {
+                if (strcmp(lang_mapping[i].lang_name, tokenized) == 0) {
+                    size_t len = strlen(lang_mapping[i].lang_code);
+                    strncpy(translation->or_lang_code, lang_mapping[i].lang_code, len);
+                    translation->or_lang_code[len] = '\0';
+                    break;
+                }
+            }
+            break;
+        case 1:
+            for (size_t i = 0; i < sizeof(lang_mapping) / sizeof(*lang_mapping); ++i) {
+                if (strcmp(lang_mapping[i].lang_name, tokenized) == 0) {
+                    size_t len = strlen(lang_mapping[i].lang_code);
+                    strncpy(translation->tr_lang_code, lang_mapping[i].lang_code, len);
+                    translation->tr_lang_code[len] = '\0';
+                    break;
+                }
+            }
+            break;
+        case 2:
+            strncpy(translation->or_word, tokenized, tok_len);
+            translation->or_word[tok_len] = '\0';
+            break;
+        case 3:
+            strncpy(translation->tr_word, tokenized, tok_len - 1); // trim last ^M from strtok
+            translation->tr_word[tok_len - 1] = '\0';
+            break;
+        default:
+            debug_warn("Unknown processed_words: %zu\n", processed_words);
+            return false;
+        }
+
+        tokenized = strtok_r(NULL, ",", &strtok_saveptr);
+        ++processed_words;
+    }
+    return true;
+}
+
+static translation_response_t* parse_csv(char* csv)
+{
+    assert(csv);
+    translation_response_t* response = safe_alloc(sizeof(translation_t)); // to be freed by caller
+    size_t translated_lines = 0;
+
+    char* strtok_saveptr = NULL;
+    char* line = strtok_r(csv, "\n", &strtok_saveptr);
+    while (line != NULL) {
+        char* newstr = safe_alloc(strlen(line) + 2);
+        size_t commas = 0;
+        size_t populated_chars = 0;
+
+        for (size_t i = 0; i <= strlen(line); ++i) {
+            if (*(line + i) == '"') {
+                debug_info("Skipping %c at %p \n", *(line + i), (void*)(line + i));
+                continue;
+            }
+            if (*(line + i) == ',') {
+                if (commas > 2) {
+                    debug_info("Skipping %c at %p \n", *(line + i), (void*)(line + i));
+                    continue;
+                }
+                ++commas;
+            }
+
+            *(newstr + populated_chars) = *(line + i);
+            ++populated_chars;
+        }
+        *(newstr + populated_chars) = '\0'; // Last char
+        debug_info("Parsing line: %s\n\n", newstr);
+
+        assert(translated_lines <= MAX_TRANSLATIONS);
+        translation_t* translation = safe_alloc(sizeof(translation_t)); // to be freed by caller
+        assert(populate_translation(newstr, translation));
+
+        response->num_of_translations = translated_lines;
+        response->result[translated_lines] = translation;
+        debug_info("Populated translation #%zu(%p): %s(%s) > %s(%s)\n",
+            translated_lines,
+            (void*)translation,
+            response->result[translated_lines]->or_word,
+            response->result[translated_lines]->or_lang_code,
+            response->result[translated_lines]->tr_word,
+            response->result[translated_lines]->tr_lang_code);
+        translated_lines++;
+
+        safe_free((void**)&newstr);
+        line = strtok_r(NULL, "\n", &strtok_saveptr);
+    }
+    return response;
+}
+
 static const char* get_homedir(void)
 {
     const char* homedir = NULL;
@@ -229,14 +344,83 @@ bool populate_database(const char* database_file)
     char* url = safe_alloc(MAX_ENTRY_LENGTH);
     if (!snprintf(url, MAX_ENTRY_LENGTH - 2, "https://docs.google.com/spreadsheets/d/%s/export?gid=%s&format=csv", spreadsheet->key, spreadsheet->gid)) {
         debug_error("Cannot assemble URL https://docs.google.com/spreadsheets/d/%s/export?gid=%s&format=csv", spreadsheet->key, spreadsheet->gid);
-        safe_free((void**) &url);
-        return false;
+        goto cleanup;
     }
     debug_info("Populated URL %s", url);
 
     bool res = submit_curl_task(url, NULL, &s, NULL);
-    debug_info("submit_curl_task res: %u ", res);
+    debug_fulldbg("submit_curl_task res: %u ", res);
+    if (res) {
+        translation_response_t* translations = NULL;
+        if ((translations = parse_csv(s.ptr)) == NULL) {
+            debug_error("translation_response from parse_csv NULL %c", '\n');
+            goto cleanup; // TODO: free translations->result
+        }
+
+        DB *db_p = NULL;
+        size_t db_ret = 0;
+        if ((db_ret = db_create(&db_p, NULL, 0))) {
+            debug_error("Cannot db_create (%zu)\n", db_ret);
+            goto cleanup; // Handle error
+        }
+        assert(db_p);
+
+        size_t db_flags = DB_CREATE;
+        size_t db_mode = DB_HASH;
+        if ((db_ret = db_p->open(db_p, NULL, database_file, NULL, db_mode, db_flags, 0600))) {
+            debug_error("Cannot db_p->open (%zu)\n", db_ret);
+            goto cleanup; // Handle error
+        }
+
+        for (size_t i = translations->num_of_translations; i > 0; --i) {
+            DBT key;
+            memset(&key, 0, sizeof (key));
+            DBT value;
+            memset(&value, 0, sizeof (value));
+
+            key.data = &i;
+            key.size = sizeof (i);
+            value.data = translations->result[i];
+            value.size = sizeof (translations->result[i]);
+
+            if ((db_ret = db_p->put(db_p, NULL, &key, &value, 0))) {
+                debug_error("Cannot db_p->put (%zu)\n", db_ret);
+                goto cleanup; // Handle error
+            }
+
+            if ((db_ret = db_p->get(db_p, NULL, &key, &value, 0))) {
+                debug_error("Cannot db_p->get (%zu)\n", db_ret);
+                goto cleanup; // Handle error
+            }
+
+            //            if ((db_ret = db_p->del(db_p, NULL, &key, 0))) {
+            //                debug_error("Cannot db_p->del (%zu)\n", db_ret);
+            //                goto cleanup; // Handle error
+            //            }
+            //
+            //            if ((db_ret = db_p->get(db_p, NULL, &key, &value, 0))) {
+            //                debug_error("Cannot db_p->get (%zu)\n", db_ret);
+            //                goto cleanup; // Handle error
+            //            }
+
+            debug_info("Cleaning up translation #%zu at %p\n", i, (void*) translations->result[i]);
+            safe_free((void**) &translations->result[i]);
+        }
+        safe_free((void**) &translations);
+
+        if ((db_ret = db_p->close(db_p, 0))) {
+            debug_error("Cannot db_p->close (%zu)\n", db_ret);
+            goto cleanup; // Handle error
+        }
+
+    } else {
+        debug_error("submit_curl_task failed: %u ", res);
+        goto cleanup;
+    }
 
     safe_free((void**) &url);
     return res;
+cleanup:
+    safe_free((void**) &url);
+    return false;
 }

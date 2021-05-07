@@ -2,7 +2,7 @@
 
 // Do not perform more allocations than specified.
 // Useful to prevent allocation loops
-#define MAX_ALLOCATIONS 1024
+#define MAX_ALLOCATIONS 10240
 
 typedef struct {
     // Starting pointer of the array of allocated blocks
