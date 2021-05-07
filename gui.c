@@ -208,7 +208,6 @@ void exit_gui(void)
 {
     bool need_to_allocate = false;
     threadpool_t* pool = get_threadpool(need_to_allocate);
-    spreadsheet_t* spreadsheet = get_spreadsheet(need_to_allocate);
 
     debug(DEBUG_INFO, "exiting, will stop threadpool at %p", (void*) pool);
 
