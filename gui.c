@@ -29,8 +29,6 @@ size_t draw_gui(void)
     }
 
     gtk_widget_show_all(main_window);
-
-
     return res;
 }
 
@@ -44,7 +42,6 @@ void draw_csv_sync_invite(void)
 {
     bool need_to_allocate = false;
     GtkWidget* main_window = get_main_window(need_to_allocate);
-
     GtkWidget *box = NULL, *button = NULL, *grid = NULL, *label = NULL;
 
     // Main widget
@@ -127,7 +124,6 @@ void draw_csv_sync_screen(GtkWidget* widget, gpointer data)
 
         g_signal_connect(GTK_ENTRY(spreadsheet_key_entry), "activate", G_CALLBACK(fetch_entries), entries);
         g_signal_connect(GTK_ENTRY(spreadsheet_gid_entry), "activate", G_CALLBACK(fetch_entries), entries);
-
         pressed = true;
 
         // redraw
@@ -137,12 +133,12 @@ void draw_csv_sync_screen(GtkWidget* widget, gpointer data)
 
 void fetch_entries(GtkEntry* entry, gpointer data)
 {
-    assert(entry);
     assert(data);
     struct GtkEntries* entries = data;
 
     bool need_to_allocate = false;
     spreadsheet_t* spreadsheet = get_spreadsheet(need_to_allocate);
+    GtkWidget* main_window = get_main_window(need_to_allocate);
 
     for (size_t i = 0; i < NUMBER_OF_FORMS; i++) {
         assert(entries->entry[i]);
@@ -181,25 +177,19 @@ void fetch_entries(GtkEntry* entry, gpointer data)
 
         size_t mode = NEED_TO_CREATE;
         const char* database_file = NULL;
-
         if ((database_file = db_file(mode)) == NULL) {
-            safe_free((void**) &spreadsheet);
             safe_free((void**) &entries);
+            safe_free((void**) &spreadsheet);
             return;
         }
 
 //        if (!populate_database(spreadsheet)) {
-//            safe_free((void**) &spreadsheet);
 //            safe_free((void**) &entries);
+//            safe_free((void**) &spreadsheet);
 //            return;
 //        }
 
-        safe_free((void**) &spreadsheet);
-        safe_free((void**) &entries);
         draw_main_screen(database_file);
-
-        need_to_allocate = false;
-        GtkWidget* main_window = get_main_window(need_to_allocate);
         gtk_widget_show_all(main_window);
     }
 }
@@ -208,7 +198,6 @@ void exit_gui(void)
 {
     bool need_to_allocate = false;
     threadpool_t* pool = get_threadpool(need_to_allocate);
-
     debug_info("exiting, will stop threadpool at %p", (void*) pool);
 
     // Shutdown the thread pool
