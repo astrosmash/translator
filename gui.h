@@ -10,11 +10,5 @@ struct GtkEntries {
 // External functions
 size_t draw_gui(void);
 
-void draw_main_screen(const char*);
-void draw_csv_sync_invite(void);
-void draw_csv_sync_screen(GtkWidget*, gpointer);
-void fetch_entries(GtkEntry*, gpointer);
-void exit_gui(void);
-
 // Definition
 #include "gui.c"
