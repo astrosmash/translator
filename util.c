@@ -375,7 +375,7 @@ bool populate_database(const char* database_file)
             goto cleanup; // Handle error
         }
 
-        for (size_t i = 0; i <= translations->num_of_translations; ++i) {
+        for (size_t i = translations->num_of_translations; i > 0; --i) {
             DBT key;
             memset(&key, 0, sizeof (key));
             DBT value;
