@@ -179,8 +179,8 @@ static bool populate_translation(char* what, translation_t* translation)
             translation->or_word[tok_len] = '\0';
             break;
         case 3:
-            strncpy(translation->tr_word, tokenized, tok_len - 1); // trim last ^M from strtok
-            translation->tr_word[tok_len - 1] = '\0';
+            strncpy(translation->tr_word, tokenized, tok_len); // TODO(?): trim last ^M from strtok
+            translation->tr_word[tok_len] = '\0';
             break;
         default:
             debug_warn("Unknown processed_words: %zu\n", processed_words);
@@ -375,7 +375,7 @@ bool populate_database(const char* database_file)
             goto cleanup; // Handle error
         }
 
-        for (size_t i = translations->num_of_translations; i > 0; --i) {
+        for (size_t i = 0; i <= translations->num_of_translations; ++i) {
             DBT key;
             memset(&key, 0, sizeof (key));
             DBT value;
