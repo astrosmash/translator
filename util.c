@@ -196,7 +196,7 @@ static bool populate_translation(char* what, translation_t* translation)
 static translation_response_t* parse_csv(char* csv)
 {
     assert(csv);
-    translation_response_t* response = safe_alloc(sizeof(translation_t)); // to be freed by caller
+    translation_response_t* response = safe_alloc(sizeof(translation_response_t)); // to be freed by caller
     size_t translated_lines = 0;
 
     char* strtok_saveptr = NULL;
