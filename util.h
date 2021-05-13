@@ -40,6 +40,7 @@ GtkWidget* get_main_window(bool);
 spreadsheet_t* get_spreadsheet(bool);
 const char* db_file(size_t);
 bool populate_database(const char*);
+translation_t* pick_rand_translation(const char*);
 
 // Definition
 #include "util.c"

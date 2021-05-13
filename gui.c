@@ -35,6 +35,18 @@ size_t draw_gui(void)
 void draw_main_screen(const char* database_file)
 {
     assert(database_file);
+    translation_t* translation = NULL;
+    if ((translation = pick_rand_translation(database_file)) == NULL) {
+        return;
+    }
+
+    debug_info("Retrieved translation: %s(%s) > %s(%s)\n",
+            translation->or_word,
+            translation->or_lang_code,
+            translation->tr_word,
+            translation->tr_lang_code);
+
+    safe_free((void**) &translation);
     safe_free((void**) &database_file);
 }
 

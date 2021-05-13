@@ -311,7 +311,7 @@ const char* db_file(size_t mode)
                 return NULL;
             }
 
-            // We ensured that file is creatable, let's remove our no-op file so further db_p->open will recreate the real file
+            // We ensured that file is creatable, let's remove our no-op file so further db_p->open will create the real file
             if (unlink(fullpath)) {
                 debug_error("Was not able to remove %s (%s)\n", fullpath, strerror(errno));
             }
@@ -335,8 +335,6 @@ const char* db_file(size_t mode)
 
 bool populate_database(const char* database_file)
 {
-    assert(database_file);
-
     bool need_to_allocate = false;
     spreadsheet_t* spreadsheet = get_spreadsheet(need_to_allocate);
     threadpool_t* pool = get_threadpool(need_to_allocate);
@@ -363,9 +361,9 @@ bool populate_database(const char* database_file)
         }
 
         DB *db_p = NULL;
-        size_t db_ret = 0;
+        ssize_t db_ret = 0;
         if ((db_ret = db_create(&db_p, NULL, 0))) {
-            debug_error("Cannot db_create (%zu)\n", db_ret);
+            debug_error("Cannot db_create (%s)\n", db_strerror(db_ret));
             goto cleanup; // Handle error
         }
         assert(db_p);
@@ -373,7 +371,7 @@ bool populate_database(const char* database_file)
         size_t db_flags = DB_CREATE;
         size_t db_mode = DB_HASH;
         if ((db_ret = db_p->open(db_p, NULL, database_file, NULL, db_mode, db_flags, 0600))) {
-            debug_error("Cannot db_p->open (%zu)\n", db_ret);
+            debug_error("Cannot db_p->open (%s)\n", db_strerror(db_ret));
             goto cleanup; // Handle error
         }
 
@@ -386,27 +384,17 @@ bool populate_database(const char* database_file)
             key.data = &i;
             key.size = sizeof (i);
             value.data = translations->result[i];
-            value.size = sizeof (translations->result[i]);
+            value.size = sizeof (*translations->result[i]);
 
             if ((db_ret = db_p->put(db_p, NULL, &key, &value, 0))) {
-                debug_error("Cannot db_p->put (%zu)\n", db_ret);
+                debug_error("Cannot db_p->put (%s)\n", db_strerror(db_ret));
                 goto cleanup; // Handle error
             }
 
             if ((db_ret = db_p->get(db_p, NULL, &key, &value, 0))) {
-                debug_error("Cannot db_p->get (%zu)\n", db_ret);
+                debug_error("Cannot db_p->get (%s)\n", db_strerror(db_ret));
                 goto cleanup; // Handle error
             }
-
-            //            if ((db_ret = db_p->del(db_p, NULL, &key, 0))) {
-            //                debug_error("Cannot db_p->del (%zu)\n", db_ret);
-            //                goto cleanup; // Handle error
-            //            }
-            //
-            //            if ((db_ret = db_p->get(db_p, NULL, &key, &value, 0))) {
-            //                debug_error("Cannot db_p->get (%zu)\n", db_ret);
-            //                goto cleanup; // Handle error
-            //            }
 
             debug_info("Cleaning up translation #%zu at %p\n", i, (void*) translations->result[i]);
             safe_free((void**) &translations->result[i]);
@@ -414,7 +402,7 @@ bool populate_database(const char* database_file)
         safe_free((void**) &translations);
 
         if ((db_ret = db_p->close(db_p, 0))) {
-            debug_error("Cannot db_p->close (%zu)\n", db_ret);
+            debug_error("Cannot db_p->close (%s)\n", db_strerror(db_ret));
             goto cleanup; // Handle error
         }
 
@@ -428,4 +416,62 @@ bool populate_database(const char* database_file)
 cleanup:
     safe_free((void**) &url);
     return false;
+}
+
+translation_t* pick_rand_translation(const char* database_file)
+{
+    DB *db_p = NULL;
+    ssize_t db_ret = 0;
+    if ((db_ret = db_create(&db_p, NULL, 0))) {
+        debug_error("Cannot db_create (%s)\n", db_strerror(db_ret));
+        return NULL; // Handle error
+    }
+    assert(db_p);
+
+    size_t db_flags = DB_RDONLY;
+    size_t db_mode = DB_HASH;
+    if ((db_ret = db_p->open(db_p, NULL, database_file, NULL, db_mode, db_flags, 0400))) {
+        debug_error("Cannot db_p->open (%s)\n", db_strerror(db_ret));
+        return NULL; // Handle error
+    }
+
+    DB_HASH_STAT* stat;
+    if ((db_ret = db_p->stat(db_p, NULL, &stat, 0))) {
+        debug_error("Cannot db_p->stat (%s)\n", db_strerror(db_ret));
+        return NULL; // Handle error
+    }
+    debug_verbose("Got %u keys\n", stat->hash_nkeys);
+
+    DBT key;
+    memset(&key, 0, sizeof (key));
+    DBT value;
+    memset(&value, 0, sizeof (value));
+
+    srand(time(NULL));
+    size_t keypos = rand() % stat->hash_nkeys + 1;
+    key.data = &keypos;
+    key.size = sizeof (keypos);
+
+    if ((db_ret = db_p->get(db_p, NULL, &key, &value, 0))) {
+        debug_error("Cannot db_p->get (%s)\n", db_strerror(db_ret));
+        return NULL; // Handle error
+    }
+
+    translation_t* translation = (translation_t *)value.data;
+    debug_info("Retrieved translation #%zu: %s(%s) > %s(%s)\n",
+            keypos,
+            translation->or_word,
+            translation->or_lang_code,
+            translation->tr_word,
+            translation->tr_lang_code);
+
+    translation_t* ret = safe_alloc(sizeof(translation_t));
+    memcpy(ret, translation, sizeof(translation_t));
+
+    if ((db_ret = db_p->close(db_p, 0))) {
+        debug_error("Cannot db_p->close (%s)\n", db_strerror(db_ret));
+        return NULL; // Handle error
+    }
+
+    return ret;
 }
