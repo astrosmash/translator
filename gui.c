@@ -97,6 +97,21 @@ static void draw_main_screen(const char* database_file)
     safe_free((void**) &database_file);
 }
 
+static void clear_children(GtkWidget* widget)
+{
+    assert(widget);
+
+    // Remove all widgets that are present on the main window
+    if (GTK_IS_CONTAINER(widget)) {
+        GList* children = gtk_container_get_children(GTK_CONTAINER(widget));
+        for (const GList* iter = children; iter != NULL; iter = g_list_next(iter)) {
+            debug_verbose("Clearing child at %p\n", iter->data);
+            gtk_widget_destroy(GTK_WIDGET(iter->data));
+        }
+        g_list_free(children);
+    }
+}
+
 static void fetch_entries(GtkEntry* entry, gpointer data)
 {
     assert(data);
@@ -155,6 +170,7 @@ static void fetch_entries(GtkEntry* entry, gpointer data)
         safe_free((void**) &entries);
         safe_free((void**) &spreadsheet);
 
+        clear_children(main_window);
         draw_main_screen(database_file);
         gtk_widget_show_all(main_window);
     }
