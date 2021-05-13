@@ -310,6 +310,11 @@ const char* db_file(size_t mode)
                 safe_free((void**) &fullpath);
                 return NULL;
             }
+
+            // We ensured that file is creatable, let's remove our no-op file so further db_p->open will recreate the real file
+            if (unlink(fullpath)) {
+                debug_error("Was not able to remove %s (%s)\n", fullpath, strerror(errno));
+            }
         } else {
             // Cannot access a file and need_to_create = false
             debug_error("Cannot access a file and need_to_create = false %s\n", fullpath);
