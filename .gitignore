@@ -1,7 +1,7 @@
 /build/
 /dist/
 /nbproject/
-/ccls-cache/
+/.ccls-cache/
 /tests/test
 
 .dep.inc

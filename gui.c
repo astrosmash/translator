@@ -35,7 +35,7 @@ static void save_sentence(GtkWidget* widget, GdkEvent* event)
     const char* or_word = (const char*) event;
     debug_test("sentence: %s or_word: %s\n", sentence, or_word);
 
-    if (strstr(sentence, "/s") || strstr(sentence, "/с")) {
+    if (strstr(sentence, " /s") || strstr(sentence, " /с")) {
         // see db_file()
         const char* homedir = get_homedir();
         const char* app_subdir = "/.tiny-ielts";
