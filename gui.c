@@ -486,7 +486,7 @@ size_t draw_gui(void)
     GtkWidget* main_window = get_main_window(need_to_allocate);
     gtk_widget_set_name(main_window, "Translator - IELTS helper");
 
-    gtk_window_set_default_size(GTK_WINDOW(main_window), 400, 200);
+    gtk_window_set_default_size(GTK_WINDOW(main_window), 460, 230);
     gtk_window_set_title(GTK_WINDOW(main_window), "translator");
 
     gtk_container_set_border_width(GTK_CONTAINER(main_window), 15);
