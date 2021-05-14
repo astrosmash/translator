@@ -52,7 +52,6 @@
             fprintf(stderr, "\n[TEST] %s:%d:%s(): " fmt, __FILE__, __LINE__, __func__, __VA_ARGS__); \
     } while (0)
 
-// Include debug output
 #define DEBUG 1
 #ifndef DEBUG_LEVEL
 #define DEBUG_LEVEL DEBUG_TEST

@@ -35,66 +35,47 @@ static void save_sentence(GtkWidget* widget, GdkEvent* event)
     const char* or_word = (const char*) event;
     debug_test("sentence: %s or_word: %s\n", sentence, or_word);
 
-    if (strstr(sentence, " /s") || strstr(sentence, " /с")) {
-        // see db_file()
-        const char* homedir = get_homedir();
-        const char* app_subdir = "/.tiny-ielts";
-        const char* db_file = "/.sentencedb";
+    // as db_file()
+    const char* homedir = get_homedir();
+    const char* app_subdir = "/.tiny-ielts";
+    const char* db_file = "/.sentencedb";
 
-        size_t fullpathsize = strlen(homedir) + strlen(app_subdir) + strlen(db_file) + 1;
-        char* fullpath = safe_alloc(fullpathsize);
+    size_t fullpathsize = strlen(homedir) + strlen(app_subdir) + strlen(db_file) + 1;
+    char* fullpath = safe_alloc(fullpathsize);
 
-        strncpy(fullpath, homedir, strlen(homedir));
-        strncat(fullpath, app_subdir, strlen(app_subdir));
-        strncat(fullpath, db_file, strlen(db_file));
+    strncpy(fullpath, homedir, strlen(homedir));
+    strncat(fullpath, app_subdir, strlen(app_subdir));
+    strncat(fullpath, db_file, strlen(db_file));
 
-        DB *db_p = NULL;
-        ssize_t db_ret = 0;
-        if ((db_ret = db_create(&db_p, NULL, 0))) {
-            debug_error("Cannot db_create (%s)\n", db_strerror(db_ret));
-            safe_free((void**) &fullpath);
-            return;
-        }
-        assert(db_p);
-
-        size_t db_flags = DB_CREATE;
-        size_t db_mode = DB_HASH;
-        if ((db_ret = db_p->open(db_p, NULL, fullpath, NULL, db_mode, db_flags, 0600))) {
-            debug_error("Cannot db_p->open (%s)\n", db_strerror(db_ret));
-            safe_free((void**) &fullpath);
-            return;
-        }
-
-        DBT key;
-        memset(&key, 0, sizeof (key));
-        DBT value;
-        memset(&value, 0, sizeof (value));
-
-        key.data = (void*) or_word;
-        key.size = strlen(or_word);
-        value.data = (void*) sentence;
-        value.size = strlen(sentence);
-
-        if ((db_ret = db_p->put(db_p, NULL, &key, &value, 0))) {
-            debug_error("Cannot db_p->put (%s)\n", db_strerror(db_ret));
-            safe_free((void**) &fullpath);
-            return;
-        }
-
-        if ((db_ret = db_p->get(db_p, NULL, &key, &value, 0))) {
-            debug_error("Cannot db_p->get (%s)\n", db_strerror(db_ret));
-            safe_free((void**) &fullpath);
-            return;
-        }
-
-        if ((db_ret = db_p->close(db_p, 0))) {
-            debug_error("Cannot db_p->close (%s)\n", db_strerror(db_ret));
-            safe_free((void**) &fullpath);
-            return;
-        }
-
+    DB *db_p = NULL;
+    ssize_t db_ret = 0;
+    if ((db_ret = db_create(&db_p, NULL, 0))) {
+        debug_error("Cannot db_create (%s)\n", db_strerror(db_ret));
         safe_free((void**) &fullpath);
+        return;
     }
+    assert(db_p);
+
+    size_t db_flags = DB_CREATE;
+    size_t db_mode = DB_HASH;
+    if ((db_ret = db_p->open(db_p, NULL, fullpath, NULL, db_mode, db_flags, 0600))) {
+        debug_error("Cannot db_p->open (%s)\n", db_strerror(db_ret));
+        safe_free((void**) &fullpath);
+        return;
+    }
+
+    if (!write_to_db(db_p, (void*) or_word, strlen(or_word), (void*) sentence, strlen(sentence))) {
+        safe_free((void**) &fullpath);
+        return;
+    }
+
+    if ((db_ret = db_p->close(db_p, 0))) {
+        debug_error("Cannot db_p->close (%s)\n", db_strerror(db_ret));
+        safe_free((void**) &fullpath);
+        return;
+    }
+
+    safe_free((void**) &fullpath);
 }
 
 static void draw_main_screen(const char*);
@@ -107,7 +88,8 @@ static void redraw_vbox(GtkWidget* parent, gpointer data)
     const char* answer = NULL;
     if (GTK_IS_ENTRY(parent)) {
         answer = gtk_entry_get_text(GTK_ENTRY(parent));
-        if (!strlen(answer)) return;
+        if (!strlen(answer))
+            return;
     }
 
     GtkWidget* vbox = arg->box;
@@ -132,12 +114,12 @@ static void redraw_vbox(GtkWidget* parent, gpointer data)
 
                                 size_t total_len = strlen(current_label_text) + strlen(translation->tr_word);
                                 char* newtext = safe_alloc(total_len + 50);
-                                // This is a second wrong answer, give a hint
+                                // This is second wrong answer, give a hint
                                 if (strstr(current_label_text, "FF0000")) {
                                     char* hint = safe_alloc(strlen(translation->tr_word));
 
                                     if (wrong_answer_num < 5) {
-                                        // Unicode 2 bytes per symbol
+                                        // Unicode has 2 bytes per symbol
                                         for (size_t i = 0; i < 3 * 2; ++i) {
                                             memcpy((hint + i), (translation->tr_word + i), sizeof (*(translation->tr_word + i)));
                                         }
@@ -147,18 +129,17 @@ static void redraw_vbox(GtkWidget* parent, gpointer data)
                                         snprintf(newtext, total_len + 49, "<span color='#FF0000'>%s</span>: %s", translation->or_word, translation->tr_word);
 
                                         if (wrong_answer_num == 5) {
-                                            // Add inner vertical box for sentences
+                                            // Add inner vertical box for sentence
                                             GtkWidget* inner_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
                                             assert(inner_box);
 
-                                            // Sentences
-                                            GtkWidget* label_sentence1 = gtk_label_new("enter sentence");
-                                            assert(label_sentence1);
-                                            GtkWidget* entry_sentence1 = gtk_entry_new();
-                                            assert(entry_sentence1);
-                                            gtk_box_pack_start(GTK_BOX(inner_box), label_sentence1, FALSE, FALSE, 0);
-                                            gtk_box_pack_start(GTK_BOX(inner_box), entry_sentence1, FALSE, FALSE, 0);
-                                            g_signal_connect(GTK_ENTRY(entry_sentence1), "activate", G_CALLBACK(save_sentence), translation->or_word);
+                                            GtkWidget* label_sentence = gtk_label_new("enter sentence");
+                                            assert(label_sentence);
+                                            GtkWidget* entry_sentence = gtk_entry_new();
+                                            assert(entry_sentence);
+                                            gtk_box_pack_start(GTK_BOX(inner_box), label_sentence, FALSE, FALSE, 0);
+                                            gtk_box_pack_start(GTK_BOX(inner_box), entry_sentence, FALSE, FALSE, 0);
+                                            g_signal_connect(GTK_ENTRY(entry_sentence), "activate", G_CALLBACK(save_sentence), translation->or_word);
 
                                             gtk_container_add(GTK_CONTAINER(vbox), inner_box);
                                         }
@@ -244,7 +225,7 @@ static void draw_main_screen(const char* database_file)
 
     gtk_container_add(GTK_CONTAINER(scroll), grid);
 
-    // Add inner vertical box with info per original word + translation + three sentences
+    // Add inner vertical box with info per original word + translation + sentence
     vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 20);
     assert(vbox);
 
@@ -390,7 +371,6 @@ static void draw_csv_sync_screen(GtkWidget* widget, gpointer data)
     static bool pressed = false;
 
     if (!pressed) {
-        // Grid
         grid = gtk_grid_new();
         assert(grid);
         gtk_container_add(GTK_CONTAINER(box), grid);
@@ -430,7 +410,7 @@ static void draw_csv_sync_screen(GtkWidget* widget, gpointer data)
         g_signal_connect(GTK_ENTRY(spreadsheet_gid_entry), "activate", G_CALLBACK(fetch_entries), entries);
         pressed = true;
 
-        // redraw
+        // Redraw
         gtk_widget_show_all(box);
     }
 }
@@ -448,7 +428,6 @@ static void draw_csv_sync_invite(void)
     gtk_container_add(GTK_CONTAINER(main_window), box);
     gtk_widget_set_name(box, "main_box");
 
-    // Grid
     grid = gtk_grid_new();
     assert(grid);
     gtk_container_add(GTK_CONTAINER(box), grid);
@@ -494,7 +473,7 @@ size_t draw_gui(void)
 
     gtk_window_present(GTK_WINDOW(main_window));
 
-    // Let's check if a dabatase file exists.
+    // Let's check if a db_file exists.
     size_t mode = NEED_TO_CHECK;
     const char* database_file = NULL;
 

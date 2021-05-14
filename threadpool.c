@@ -25,7 +25,7 @@ static void* threadpool_thread(void *threadpool)
             debug_test("pthread_cond_wait ok. Tasks count: %zu", pool->count);
         }
 
-        // Got outside of while loop - stop processing
+        // Got outside of the while loop - stop processing
         if ((pool->shutdown == threadpool_shutdown_immediate) ||
                 (pool->shutdown == threadpool_graceful && pool->count == 0)) {
             debug_info("Closing processing. Tasks count: %zu"

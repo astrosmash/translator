@@ -196,7 +196,7 @@ static bool populate_translation(char* what, translation_t* translation)
 static translation_response_t* parse_csv(char* csv)
 {
     assert(csv);
-    translation_response_t* response = safe_alloc(sizeof(translation_response_t)); // to be freed by caller
+    translation_response_t* response = safe_alloc(sizeof(translation_response_t)); // to be freed by the caller
     size_t translated_lines = 0;
 
     char* strtok_saveptr = NULL;
@@ -226,7 +226,7 @@ static translation_response_t* parse_csv(char* csv)
         debug_info("Parsing line: %s\n\n", newstr);
 
         assert(translated_lines <= MAX_TRANSLATIONS);
-        translation_t* translation = safe_alloc(sizeof(translation_t)); // to be freed by caller
+        translation_t* translation = safe_alloc(sizeof(translation_t)); // to be freed by the caller
         assert(populate_translation(newstr, translation));
 
         response->num_of_translations = translated_lines;
@@ -329,8 +329,36 @@ const char* db_file(size_t mode)
         }
     }
 
-    // to be freed by caller.
+    // to be freed by the caller
     return fullpath;
+}
+
+bool write_to_db(DB *db_p, void *kdata, size_t ksize, void *vdata, size_t vsize)
+{
+    assert(db_p && kdata && vdata);
+
+    DBT key;
+    memset(&key, 0, sizeof (key));
+    DBT value;
+    memset(&value, 0, sizeof (value));
+
+    key.data = kdata;
+    key.size = ksize;
+    value.data = vdata;
+    value.size = vsize;
+
+    ssize_t db_ret = 0;
+    if ((db_ret = db_p->put(db_p, NULL, &key, &value, 0))) {
+        debug_error("Cannot db_p->put (%s)\n", db_strerror(db_ret));
+        return false;
+    }
+
+    if ((db_ret = db_p->get(db_p, NULL, &key, &value, 0))) {
+        debug_error("Cannot db_p->get (%s)\n", db_strerror(db_ret));
+        return false;
+    }
+
+    return true;
 }
 
 bool populate_database(const char* database_file)
@@ -356,15 +384,15 @@ bool populate_database(const char* database_file)
     if (res) {
         translation_response_t* translations = NULL;
         if ((translations = parse_csv(s.ptr)) == NULL) {
-            debug_error("translation_response from parse_csv NULL %c", '\n');
-            goto cleanup; // TODO: free translations->result
+            debug_error("translation_response from parse_csv is NULL %c", '\n');
+            goto cleanup; // TODO: free translations->results
         }
 
         DB *db_p = NULL;
         ssize_t db_ret = 0;
         if ((db_ret = db_create(&db_p, NULL, 0))) {
             debug_error("Cannot db_create (%s)\n", db_strerror(db_ret));
-            goto cleanup; // Handle error
+            goto cleanup; // ditto
         }
         assert(db_p);
 
@@ -372,29 +400,12 @@ bool populate_database(const char* database_file)
         size_t db_mode = DB_HASH;
         if ((db_ret = db_p->open(db_p, NULL, database_file, NULL, db_mode, db_flags, 0600))) {
             debug_error("Cannot db_p->open (%s)\n", db_strerror(db_ret));
-            goto cleanup; // Handle error
+            goto cleanup; // ditto
         }
 
         for (size_t i = translations->num_of_translations; i > 0; --i) {
-            DBT key;
-            memset(&key, 0, sizeof (key));
-            DBT value;
-            memset(&value, 0, sizeof (value));
-
-            key.data = &i;
-            key.size = sizeof (i);
-            value.data = translations->result[i];
-            value.size = sizeof (*translations->result[i]);
-
-            if ((db_ret = db_p->put(db_p, NULL, &key, &value, 0))) {
-                debug_error("Cannot db_p->put (%s)\n", db_strerror(db_ret));
-                goto cleanup; // Handle error
-            }
-
-            if ((db_ret = db_p->get(db_p, NULL, &key, &value, 0))) {
-                debug_error("Cannot db_p->get (%s)\n", db_strerror(db_ret));
-                goto cleanup; // Handle error
-            }
+            if (!write_to_db(db_p, &i, sizeof (i), translations->result[i], sizeof (*translations->result[i])))
+                goto cleanup; // ditto
 
             debug_info("Cleaning up translation #%zu at %p\n", i, (void*) translations->result[i]);
             safe_free((void**) &translations->result[i]);
@@ -403,7 +414,7 @@ bool populate_database(const char* database_file)
 
         if ((db_ret = db_p->close(db_p, 0))) {
             debug_error("Cannot db_p->close (%s)\n", db_strerror(db_ret));
-            goto cleanup; // Handle error
+            goto cleanup;
         }
 
     } else {

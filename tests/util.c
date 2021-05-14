@@ -145,25 +145,7 @@ void parse_csv_test(void)
     }
 
     for (size_t i = 0; i <= translations->num_of_translations; ++i) {
-        DBT key;
-        memset(&key, 0, sizeof (key));
-        DBT value;
-        memset(&value, 0, sizeof (value));
-
-        key.data = &i;
-        key.size = sizeof (i);
-        value.data = translations->result[i];
-        value.size = sizeof (*translations->result[i]);
-
-        if ((db_ret = db_p->put(db_p, NULL, &key, &value, 0))) {
-            debug_error("Cannot db_p->put (%s)\n", db_strerror(db_ret));
-            return;
-        }
-
-        if ((db_ret = db_p->get(db_p, NULL, &key, &value, 0))) {
-            debug_error("Cannot db_p->get (%s)\n", db_strerror(db_ret));
-            return;
-        }
+        assert(write_to_db(db_p, &i, sizeof (i), translations->result[i], sizeof (*translations->result[i])));
 
         safe_free((void**) &translations->result[i]);
     }
@@ -198,7 +180,7 @@ void db_file_test(void)
 // pick_rand_translation()
 void pick_rand_translation_test(void)
 {
-    // Will not test random, but will check all database entries
+    // Will not test random, but check all the database entries instead
     const char* database_file = ".db";
 
     DB *db_p = NULL;
