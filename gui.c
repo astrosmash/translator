@@ -27,6 +27,76 @@ static void clear_children(GtkWidget* widget)
     }
 }
 
+static void save_sentence(GtkWidget* widget, GdkEvent* event)
+{
+    assert(widget);
+    assert(event);
+    const char* sentence = gtk_entry_get_text(GTK_ENTRY(widget));
+    const char* or_word = (const char*) event;
+    debug_test("sentence: %s or_word: %s\n", sentence, or_word);
+
+    if (strstr(sentence, "/s") || strstr(sentence, "/с")) {
+        // see db_file()
+        const char* homedir = get_homedir();
+        const char* app_subdir = "/.tiny-ielts";
+        const char* db_file = "/.sentencedb";
+
+        size_t fullpathsize = strlen(homedir) + strlen(app_subdir) + strlen(db_file) + 1;
+        char* fullpath = safe_alloc(fullpathsize);
+
+        strncpy(fullpath, homedir, strlen(homedir));
+        strncat(fullpath, app_subdir, strlen(app_subdir));
+        strncat(fullpath, db_file, strlen(db_file));
+
+        DB *db_p = NULL;
+        ssize_t db_ret = 0;
+        if ((db_ret = db_create(&db_p, NULL, 0))) {
+            debug_error("Cannot db_create (%s)\n", db_strerror(db_ret));
+            safe_free((void**) &fullpath);
+            return;
+        }
+        assert(db_p);
+
+        size_t db_flags = DB_CREATE;
+        size_t db_mode = DB_HASH;
+        if ((db_ret = db_p->open(db_p, NULL, fullpath, NULL, db_mode, db_flags, 0600))) {
+            debug_error("Cannot db_p->open (%s)\n", db_strerror(db_ret));
+            safe_free((void**) &fullpath);
+            return;
+        }
+
+        DBT key;
+        memset(&key, 0, sizeof (key));
+        DBT value;
+        memset(&value, 0, sizeof (value));
+
+        key.data = (void*) or_word;
+        key.size = strlen(or_word);
+        value.data = (void*) sentence;
+        value.size = strlen(sentence);
+
+        if ((db_ret = db_p->put(db_p, NULL, &key, &value, 0))) {
+            debug_error("Cannot db_p->put (%s)\n", db_strerror(db_ret));
+            safe_free((void**) &fullpath);
+            return;
+        }
+
+        if ((db_ret = db_p->get(db_p, NULL, &key, &value, 0))) {
+            debug_error("Cannot db_p->get (%s)\n", db_strerror(db_ret));
+            safe_free((void**) &fullpath);
+            return;
+        }
+
+        if ((db_ret = db_p->close(db_p, 0))) {
+            debug_error("Cannot db_p->close (%s)\n", db_strerror(db_ret));
+            safe_free((void**) &fullpath);
+            return;
+        }
+
+        safe_free((void**) &fullpath);
+    }
+}
+
 static void draw_main_screen(const char*);
 
 static void redraw_vbox(GtkWidget* parent, gpointer data)
@@ -55,6 +125,7 @@ static void redraw_vbox(GtkWidget* parent, gpointer data)
                     if (strlen(current_label_text)) {
                         debug_test("current_label_text: %s\n", current_label_text);
 
+                        static size_t wrong_answer_num = 0;
                         if (answer) {
                             if (strcmp(answer, translation->tr_word)) {
                                 debug_fulldbg("wrong answer: %s (%s)\n", answer, translation->tr_word);
@@ -64,7 +135,6 @@ static void redraw_vbox(GtkWidget* parent, gpointer data)
                                 // This is a second wrong answer, give a hint
                                 if (strstr(current_label_text, "FF0000")) {
                                     char* hint = safe_alloc(strlen(translation->tr_word));
-                                    static size_t wrong_answer_num = 0;
 
                                     if (wrong_answer_num < 5) {
                                         // Unicode 2 bytes per symbol
@@ -75,7 +145,23 @@ static void redraw_vbox(GtkWidget* parent, gpointer data)
                                         snprintf(newtext, total_len, "<span color='#FF0000'>%s</span>: %s", translation->or_word, hint);
                                     } else {
                                         snprintf(newtext, total_len + 49, "<span color='#FF0000'>%s</span>: %s", translation->or_word, translation->tr_word);
-                                        wrong_answer_num = 0;
+
+                                        if (wrong_answer_num == 5) {
+                                            // Add inner vertical box for sentences
+                                            GtkWidget* inner_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
+                                            assert(inner_box);
+
+                                            // Sentences
+                                            GtkWidget* label_sentence1 = gtk_label_new("enter sentence");
+                                            assert(label_sentence1);
+                                            GtkWidget* entry_sentence1 = gtk_entry_new();
+                                            assert(entry_sentence1);
+                                            gtk_box_pack_start(GTK_BOX(inner_box), label_sentence1, FALSE, FALSE, 0);
+                                            gtk_box_pack_start(GTK_BOX(inner_box), entry_sentence1, FALSE, FALSE, 0);
+                                            g_signal_connect(GTK_ENTRY(entry_sentence1), "activate", G_CALLBACK(save_sentence), translation->or_word);
+
+                                            gtk_container_add(GTK_CONTAINER(vbox), inner_box);
+                                        }
                                     }
 
                                     safe_free((void**) &hint);
@@ -91,6 +177,7 @@ static void redraw_vbox(GtkWidget* parent, gpointer data)
                                 gtk_container_remove(GTK_CONTAINER(vbox_iter->data), GTK_WIDGET(eventbox_elements->data));
                                 gtk_container_add(GTK_CONTAINER(vbox_iter->data), new_label);
                                 gtk_widget_show_all(vbox_iter->data);
+                                gtk_widget_show_all(vbox);
 
                                 safe_free((void**) &newtext);
                                 g_list_free(eventbox_view);
@@ -98,6 +185,7 @@ static void redraw_vbox(GtkWidget* parent, gpointer data)
                                 return;
                             }
                         }
+                        wrong_answer_num = 0;
                     }
                 }
                 g_list_free(eventbox_view);
@@ -174,10 +262,15 @@ static void draw_main_screen(const char* database_file)
     GtkWidget* parent_menu = gtk_menu_new();
     assert(parent_menu);
 
-    GtkWidget* submenu_option_remove_word = gtk_menu_item_new_with_label("Удалить из БД");
+    GtkWidget* submenu_option_remove_word = gtk_menu_item_new_with_label("remove from DB");
     assert(submenu_option_remove_word);
     gtk_widget_show(submenu_option_remove_word);
     gtk_menu_shell_append(GTK_MENU_SHELL(parent_menu), submenu_option_remove_word);
+
+    GtkWidget* submenu_option_about = gtk_menu_item_new_with_label("about");
+    assert(submenu_option_about);
+    gtk_widget_show(submenu_option_about);
+    gtk_menu_shell_append(GTK_MENU_SHELL(parent_menu), submenu_option_about);
 
     g_signal_connect_swapped(G_OBJECT(eventbox_word), "button-press-event",
             G_CALLBACK(draw_popup_menu), parent_menu);
