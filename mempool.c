@@ -91,7 +91,7 @@ bool track_block(void* ptr, size_t mode)
                 }
             }
         }
-        debug_verbose("Inserted %p at pos %zu", ptr, pool->count);
+        debug_alloc("Inserted %p at pos %zu", ptr, pool->count);
         return true;
     }
 
@@ -107,7 +107,7 @@ bool track_block(void* ptr, size_t mode)
         }
 
         for (size_t i = pool->count; i > 0; --i) {
-            debug_fulldbg("Looking for %p, found %p at pos %zu", ptr, pool->allocated_blocks[i], i);
+            debug_alloc("Looking for %p, found %p at pos %zu", ptr, pool->allocated_blocks[i], i);
             if (pool->allocated_blocks[i] == ptr) {
                 pool->allocated_blocks[i] = NULL;
 
@@ -119,7 +119,7 @@ bool track_block(void* ptr, size_t mode)
                 }
 
                 --pool->count;
-                debug_verbose("Removed %p at pos %zu, now allocated: %zu", ptr, i, pool->count);
+                debug_alloc("Removed %p at pos %zu, now allocated: %zu", ptr, i, pool->count);
                 return true;
             }
         }

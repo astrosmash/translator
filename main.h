@@ -52,6 +52,14 @@
             fprintf(stderr, "\n[TEST] %s:%d:%s(): " fmt, __FILE__, __LINE__, __func__, __VA_ARGS__); \
     } while (0)
 
+// 7: memory allocations
+#define DEBUG_ALLOC 7
+#define debug_alloc(fmt, ...)                                                                  \
+    do {                                                                                      \
+        if (DEBUG && DEBUG_LEVEL >= DEBUG_ALLOC)                                                      \
+            fprintf(stderr, "\n[ALLOC] %s:%d:%s(): " fmt, __FILE__, __LINE__, __func__, __VA_ARGS__); \
+    } while (0)
+
 #define DEBUG 1
 #ifndef DEBUG_LEVEL
 #define DEBUG_LEVEL DEBUG_TEST
