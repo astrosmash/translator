@@ -123,6 +123,10 @@ bool track_block(void* ptr, size_t mode)
                 return true;
             }
         }
+        if (pool->allocated_blocks[0] == ptr) {
+            pool->allocated_blocks[0] = NULL;
+            return true;
+        }
         debug_error("Failed to find %p for removal...", ptr);
         return false;
     }

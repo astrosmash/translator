@@ -16,6 +16,7 @@ int main(int argc, char** argv)
         }
     }
 
+    srand(time(NULL));
     if (gui) {
         curl_global_init(CURL_GLOBAL_DEFAULT);
         gtk_init(&argc, &argv);

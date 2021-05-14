@@ -12,6 +12,111 @@ static void draw_popup_menu(GtkWidget* widget, GdkEvent* event)
     }
 }
 
+static void clear_children(GtkWidget* widget)
+{
+    assert(widget);
+
+    // Remove all widgets that are present on the main window
+    if (GTK_IS_CONTAINER(widget)) {
+        GList* children = gtk_container_get_children(GTK_CONTAINER(widget));
+        for (const GList* iter = children; iter != NULL; iter = g_list_next(iter)) {
+            debug_verbose("Clearing child at %p\n", iter->data);
+            gtk_widget_destroy(GTK_WIDGET(iter->data));
+        }
+        g_list_free(children);
+    }
+}
+
+static void draw_main_screen(const char*);
+
+static void redraw_vbox(GtkWidget* parent, gpointer data)
+{
+    assert(data);
+    struct redraw_vbox_arg* arg = data;
+
+    const char* answer = NULL;
+    if (GTK_IS_ENTRY(parent)) {
+        answer = gtk_entry_get_text(GTK_ENTRY(parent));
+        if (!strlen(answer)) return;
+    }
+
+    GtkWidget* vbox = arg->box;
+    translation_t* translation = arg->translation;
+
+    if (GTK_IS_CONTAINER(vbox)) {
+        GList* vbox_widgets = gtk_container_get_children(GTK_CONTAINER(vbox));
+
+        for (const GList* vbox_iter = vbox_widgets; vbox_iter != NULL; vbox_iter = g_list_next(vbox_iter)) {
+            if (GTK_IS_CONTAINER(vbox_iter->data)) {
+                GList* eventbox_view = gtk_container_get_children(GTK_CONTAINER(vbox_iter->data));
+
+                for (const GList* eventbox_elements = eventbox_view; eventbox_elements != NULL; eventbox_elements = g_list_next(eventbox_elements)) {
+                    const char* current_label_text = gtk_label_get_label(GTK_LABEL(eventbox_elements->data));
+                    if (strlen(current_label_text)) {
+                        debug_test("current_label_text: %s\n", current_label_text);
+
+                        if (answer) {
+                            if (strcmp(answer, translation->tr_word)) {
+                                debug_fulldbg("wrong answer: %s (%s)\n", answer, translation->tr_word);
+
+                                size_t total_len = strlen(current_label_text) + strlen(translation->tr_word);
+                                char* newtext = safe_alloc(total_len + 50);
+                                // This is a second wrong answer, give a hint
+                                if (strstr(current_label_text, "FF0000")) {
+                                    char* hint = safe_alloc(strlen(translation->tr_word));
+                                    static size_t wrong_answer_num = 0;
+
+                                    if (wrong_answer_num < 5) {
+                                        // Unicode 2 bytes per symbol
+                                        for (size_t i = 0; i < 3 * 2; ++i) {
+                                            memcpy((hint + i), (translation->tr_word + i), sizeof (*(translation->tr_word + i)));
+                                        }
+                                        strncat(hint, "...", strlen("..."));
+                                        snprintf(newtext, total_len, "<span color='#FF0000'>%s</span>: %s", translation->or_word, hint);
+                                    } else {
+                                        snprintf(newtext, total_len + 49, "<span color='#FF0000'>%s</span>: %s", translation->or_word, translation->tr_word);
+                                        wrong_answer_num = 0;
+                                    }
+
+                                    safe_free((void**) &hint);
+                                    ++wrong_answer_num;
+                                } else {
+                                    snprintf(newtext, strlen(current_label_text) + 49, "<span color='#FF0000'>%s</span>", translation->or_word);
+                                }
+
+                                GtkWidget* new_label = gtk_label_new(NULL);
+                                assert(new_label);
+                                gtk_label_set_markup(GTK_LABEL(new_label), newtext);
+
+                                gtk_container_remove(GTK_CONTAINER(vbox_iter->data), GTK_WIDGET(eventbox_elements->data));
+                                gtk_container_add(GTK_CONTAINER(vbox_iter->data), new_label);
+                                gtk_widget_show_all(vbox_iter->data);
+
+                                safe_free((void**) &newtext);
+                                g_list_free(eventbox_view);
+                                g_list_free(vbox_widgets);
+                                return;
+                            }
+                        }
+                    }
+                }
+                g_list_free(eventbox_view);
+            }
+            g_list_free(vbox_widgets);
+        }
+
+        bool need_to_allocate = false;
+        GtkWidget* main_window = get_main_window(need_to_allocate);
+
+        clear_children(main_window);
+        debug_test("redraw_arg->database_file: %s", arg->database_file);
+        draw_main_screen(arg->database_file);
+    }
+
+    safe_free((void**) &translation);
+    safe_free((void**) &arg);
+}
+
 static void draw_main_screen(const char* database_file)
 {
     assert(database_file);
@@ -30,7 +135,7 @@ static void draw_main_screen(const char* database_file)
             translation->tr_lang_code);
 
     // Start drawing result
-    GtkWidget *grid = NULL, *vbox = NULL, *scroll = NULL;
+    GtkWidget *button = NULL, *grid = NULL, *vbox = NULL, *scroll = NULL;
 
     scroll = gtk_scrolled_window_new(NULL, NULL);
     assert(scroll);
@@ -50,25 +155,18 @@ static void draw_main_screen(const char* database_file)
     gtk_grid_set_row_spacing(GTK_GRID(grid), 15);
 
     gtk_container_add(GTK_CONTAINER(scroll), grid);
+
+    // Add inner vertical box with info per original word + translation + three sentences
     vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 20);
     assert(vbox);
-
-    // Add inner horizontal box with info per original word + translation + three sentences
-    GtkWidget* inner_hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
-    assert(inner_hbox);
-    gtk_container_add(GTK_CONTAINER(vbox), inner_hbox);
 
     // Event box to capture clicks per word
     GtkWidget* eventbox_word = gtk_event_box_new();
     assert(eventbox_word);
-    gtk_box_pack_start(GTK_BOX(inner_hbox), eventbox_word, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(vbox), eventbox_word, FALSE, FALSE, 0);
 
     GtkWidget* word_label = gtk_label_new(NULL);
     assert(word_label);
-
-    gtk_label_set_justify(GTK_LABEL(word_label), GTK_JUSTIFY_CENTER);
-    gtk_label_set_line_wrap(GTK_LABEL(word_label), TRUE);
-    gtk_widget_set_halign(word_label, GTK_ALIGN_START);
     gtk_label_set_markup(GTK_LABEL(word_label), translation->or_word);
     gtk_container_add(GTK_CONTAINER(eventbox_word), word_label);
 
@@ -83,33 +181,31 @@ static void draw_main_screen(const char* database_file)
 
     g_signal_connect_swapped(G_OBJECT(eventbox_word), "button-press-event",
             G_CALLBACK(draw_popup_menu), parent_menu);
+    gtk_grid_attach(GTK_GRID(grid), vbox, 0, 1, 1, 1);
 
     // Answer box
     GtkWidget* entry = gtk_entry_new();
     assert(entry);
     gtk_grid_attach(GTK_GRID(grid), entry, 0, 2, 1, 1);
-    //    g_signal_connect(GTK_ENTRY(entry), "activate", G_CALLBACK(_Gui_RedrawViewTextMatch), vbox);
 
-    gtk_grid_attach(GTK_GRID(grid), vbox, 0, 1, 1, 1);
+    struct redraw_vbox_arg* redraw_arg = safe_alloc(sizeof(struct redraw_vbox_arg));
+    redraw_arg->box = vbox;
+    redraw_arg->translation = translation;
+    redraw_arg->database_file = safe_alloc(strlen(database_file) + 1); // Will be freed at the bottom
+    strncpy(redraw_arg->database_file, database_file, strlen(database_file));
+    debug_test("redraw_arg->database_file: %s", redraw_arg->database_file);
+
+    g_signal_connect(GTK_ENTRY(entry), "activate", G_CALLBACK(redraw_vbox), redraw_arg);
+
+    button = gtk_button_new_with_label("next");
+    assert(button);
+
+    g_signal_connect(button, "clicked", G_CALLBACK(redraw_vbox), redraw_arg);
+    gtk_grid_attach(GTK_GRID(grid), button, 0, 3, 1, 1);
+    gtk_widget_set_name(button, "next");
+
     gtk_widget_show_all(main_window);
-
-    safe_free((void**) &translation);
     safe_free((void**) &database_file);
-}
-
-static void clear_children(GtkWidget* widget)
-{
-    assert(widget);
-
-    // Remove all widgets that are present on the main window
-    if (GTK_IS_CONTAINER(widget)) {
-        GList* children = gtk_container_get_children(GTK_CONTAINER(widget));
-        for (const GList* iter = children; iter != NULL; iter = g_list_next(iter)) {
-            debug_verbose("Clearing child at %p\n", iter->data);
-            gtk_widget_destroy(GTK_WIDGET(iter->data));
-        }
-        g_list_free(children);
-    }
 }
 
 static void fetch_entries(GtkEntry* entry, gpointer data)

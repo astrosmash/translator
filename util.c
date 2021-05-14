@@ -179,8 +179,8 @@ static bool populate_translation(char* what, translation_t* translation)
             translation->or_word[tok_len] = '\0';
             break;
         case 3:
-            strncpy(translation->tr_word, tokenized, tok_len); // TODO(?): trim last ^M from strtok
-            translation->tr_word[tok_len] = '\0';
+            strncpy(translation->tr_word, tokenized, tok_len - 1); // TODO(?): trim last ^M from strtok
+            translation->tr_word[tok_len - 1] = '\0';
             break;
         default:
             debug_warn("Unknown processed_words: %zu\n", processed_words);
@@ -447,7 +447,6 @@ translation_t* pick_rand_translation(const char* database_file)
     DBT value;
     memset(&value, 0, sizeof (value));
 
-    srand(time(NULL));
     size_t keypos = rand() % stat->hash_nkeys + 1;
     key.data = &keypos;
     key.size = sizeof (keypos);
