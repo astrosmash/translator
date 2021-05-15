@@ -16,11 +16,11 @@ Thus having a dataset of most common / important words just for you, and checkin
 * configure Access for exported document to be Anybody who has a link
 
 ### Launch instructions
+* dependencies: `POSIX` + `GTK3, curl, Berkeley DB`, optional `clang` for source compilation
+* install dependencies on Mac: `brew install gtk+3 libcurl berkeley-db`
 * for compilation from source, clone the tree and use `make clean && make build`
 * for binary download, download one for your platform in `bin/`
 * launch with `-g` key to activate GUI
-* dependencies: `POSIX` + `GTK3, curl, Berkeley DB`, optional `clang` for source compilation.
-* install dependencies on Mac: `brew install gtk+3 libcurl berkeley-db`
 
 ### First launch
 * copy spreadsheet key (the part behind `/d/` and ahead `/edit` in the URL) 
