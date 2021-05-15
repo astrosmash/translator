@@ -23,7 +23,7 @@ Thus having a dataset of most common / important words just for you, and checkin
 * launch with `-g` key to activate GUI
 
 ### First launch
-* copy spreadsheet key (the part behind `/d/` and ahead `/edit` in the URL) 
+* copy spreadsheet key (the part behind `/d/` and ahead of `/edit` in the URL)
 * copy shpreadsheet ID (digits after `gid=`)
 * enter these values in the welcome screen 
 * hit Enter on either entry - this will sync the Spreadsheet to the local database (location: `<home directory>/.tiny-ielts./db`)
